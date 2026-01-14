@@ -1,0 +1,68 @@
+---
+title: "Itniotech Integration"
+description: "Configure Itniotech Voice API for telephony in Dograh AI"
+---
+
+## Overview
+
+Itniotech provides programmable voice APIs for placing and receiving calls. Dograh AI integrates with Itniotech through the telephony provider abstraction so your agents can place outbound calls and stream audio over WebSocket.
+
+## Prerequisites
+
+Before setting up the integration, ensure you have:
+
+- An Itniotech account
+- An Itniotech API Key and API Secret
+- One or more Itniotech phone numbers enabled for voice calls
+- A Dograh AI instance reachable from the public internet
+
+## Configuration
+
+### Step 1: Collect Itniotech Credentials
+
+1. Log in to your Itniotech dashboard
+2. Locate your **API Key** and **API Secret**
+3. Confirm at least one caller ID number is active
+
+### Step 2: Configure in Dograh AI
+
+1. Go to **Workflow** → **Phone Call** → **Configure Telephony**
+2. Choose **Itniotech** as the provider
+3. Enter:
+   - **API Key**
+   - **API Secret**
+   - **From Phone Number**
+   - (Optional) **API Base URL** if Itniotech provides a regional endpoint
+4. Click **Save Configuration**
+
+### Step 3: Set Webhook URLs in Itniotech
+
+When Dograh initiates a call, it provides Itniotech with a webhook URL that returns TwiML instructions for audio streaming.
+
+If you need to configure webhooks manually in Itniotech, use:
+
+- **Call webhook (TwiML)**:
+  `https://YOUR_DOGRAH_DOMAIN/api/v1/telephony/twiml?workflow_id=WORKFLOW_ID&user_id=USER_ID&workflow_run_id=RUN_ID&organization_id=ORG_ID`
+- **Status callback**:
+  `https://YOUR_DOGRAH_DOMAIN/api/v1/telephony/itniotech/status-callback/RUN_ID`
+
+## How It Works
+
+1. Dograh AI sends an outbound call request to Itniotech.
+2. Itniotech requests TwiML from Dograh.
+3. Dograh responds with a WebSocket URL for real-time audio streaming.
+4. Status callbacks are recorded on workflow runs for reporting and retries.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Authentication failed">
+    Verify the API Key and API Secret are correct and active.
+  </Accordion>
+  <Accordion title="Calls connect but no audio">
+    Ensure your WebSocket endpoint is reachable from Itniotech and that your firewall allows WebSocket traffic.
+  </Accordion>
+  <Accordion title="Invalid phone number">
+    Use E.164 formatting for the caller ID and destination numbers, e.g. +1234567890.
+  </Accordion>
+</AccordionGroup>

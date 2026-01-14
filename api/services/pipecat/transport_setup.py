@@ -128,6 +128,82 @@ async def create_twilio_transport(
     )
 
 
+async def create_itniotech_transport(
+    websocket_client: WebSocket,
+    stream_sid: str,
+    call_sid: str,
+    workflow_run_id: int,
+    audio_config: AudioConfig,
+    organization_id: int,
+    vad_config: dict | None = None,
+    ambient_noise_config: dict | None = None,
+):
+    """Create a transport for Itniotech connections."""
+    from api.services.telephony.factory import load_telephony_config
+
+    config = await load_telephony_config(organization_id)
+
+    if config.get("provider") != "itniotech":
+        raise ValueError(f"Expected Itniotech provider, got {config.get('provider')}")
+
+    api_key = config.get("api_key")
+    api_secret = config.get("api_secret")
+
+    if not api_key or not api_secret:
+        raise ValueError(
+            f"Incomplete Itniotech configuration for organization {organization_id}"
+        )
+
+    turn_analyzer = create_turn_analyzer(workflow_run_id, audio_config)
+
+    serializer = TwilioFrameSerializer(
+        stream_sid=stream_sid,
+        call_sid=call_sid,
+        account_sid=api_key,
+        auth_token=api_secret,
+    )
+
+    return FastAPIWebsocketTransport(
+        websocket=websocket_client,
+        params=FastAPIWebsocketParams(
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            audio_in_sample_rate=audio_config.transport_in_sample_rate,
+            audio_out_sample_rate=audio_config.transport_out_sample_rate,
+            vad_analyzer=(
+                SileroVADAnalyzer(
+                    params=VADParams(
+                        confidence=vad_config.get("confidence", 0.7),
+                        start_secs=vad_config.get("start_seconds", 0.4),
+                        stop_secs=vad_config.get("stop_seconds", 0.8),
+                        min_volume=vad_config.get("minimum_volume", 0.6),
+                    )
+                )
+                if vad_config
+                else SileroVADAnalyzer()
+            ),
+            audio_out_mixer=(
+                SoundfileMixer(
+                    sound_files={
+                        "office": APP_ROOT_DIR
+                        / "assets"
+                        / f"office-ambience-{audio_config.transport_out_sample_rate}-mono.wav"
+                    },
+                    default_sound="office",
+                    volume=ambient_noise_config.get("volume", 0.3),
+                )
+                if ambient_noise_config and ambient_noise_config.get("enabled", False)
+                else SilenceAudioMixer()
+            ),
+            turn_analyzer=turn_analyzer,
+            serializer=serializer,
+            audio_in_filter=RNNoiseFilter(library_path=librnnoise_path)
+            if ENABLE_RNNOISE
+            else None,
+        ),
+    )
+
+
 async def create_cloudonix_transport(
     websocket_client: WebSocket,
     stream_sid: str,

@@ -278,6 +278,7 @@ async def _validate_inbound_request(
     x_twilio_signature: str = None,
     x_vobiz_signature: str = None,
     x_vobiz_timestamp: str = None,
+    x_itniotech_signature: str = None,
 ) -> tuple[bool, TelephonyError, dict, object]:
     """
     Validate all aspects of inbound request.
@@ -311,7 +312,7 @@ async def _validate_inbound_request(
 
     # Verify webhook signature if provided
     provider_instance = None
-    if x_twilio_signature or x_vobiz_signature:
+    if x_twilio_signature or x_vobiz_signature or x_itniotech_signature:
         backend_endpoint = await TunnelURLProvider.get_tunnel_url()
         webhook_url = (
             f"https://{backend_endpoint}/api/v1/telephony/inbound/{workflow_id}"
@@ -333,6 +334,13 @@ async def _validate_inbound_request(
                 x_vobiz_signature,
                 x_vobiz_timestamp,
                 webhook_body,
+            )
+        elif provider_class.PROVIDER_NAME == "itniotech" and x_itniotech_signature:
+            logger.info(f"Verifying Itniotech signature for URL: {webhook_url}")
+            signature_valid = await provider_instance.verify_inbound_signature(
+                webhook_url,
+                webhook_data,
+                x_itniotech_signature,
             )
         else:
             logger.warning(
@@ -634,6 +642,62 @@ async def handle_twilio_status_callback(
     )
 
     # Process the status update
+    await _process_status_update(workflow_run_id, status_update, workflow_run)
+
+    return {"status": "success"}
+
+
+@router.post("/itniotech/status-callback/{workflow_run_id}")
+async def handle_itniotech_status_callback(
+    workflow_run_id: int,
+    request: Request,
+    x_itniotech_signature: Optional[str] = Header(None),
+):
+    """Handle Itniotech-specific status callbacks."""
+    callback_data, _ = await parse_webhook_request(request)
+
+    logger.info(
+        f"[run {workflow_run_id}] Received Itniotech status callback: {json.dumps(callback_data)}"
+    )
+
+    workflow_run = await db_client.get_workflow_run_by_id(workflow_run_id)
+    if not workflow_run:
+        logger.warning(f"Workflow run {workflow_run_id} not found for status callback")
+        return {"status": "ignored", "reason": "workflow_run_not_found"}
+
+    workflow = await db_client.get_workflow_by_id(workflow_run.workflow_id)
+    if not workflow:
+        logger.warning(f"Workflow {workflow_run.workflow_id} not found")
+        return {"status": "ignored", "reason": "workflow_not_found"}
+
+    provider = await get_telephony_provider(workflow.organization_id)
+
+    if x_itniotech_signature:
+        backend_endpoint = await TunnelURLProvider.get_tunnel_url()
+        full_url = f"https://{backend_endpoint}/api/v1/telephony/itniotech/status-callback/{workflow_run_id}"
+
+        is_valid = await provider.verify_webhook_signature(
+            full_url, callback_data, x_itniotech_signature
+        )
+
+        if not is_valid:
+            logger.warning(
+                f"Invalid Itniotech webhook signature for workflow run {workflow_run_id}"
+            )
+            return {"status": "error", "reason": "invalid_signature"}
+
+    parsed_data = provider.parse_status_callback(callback_data)
+
+    status_update = StatusCallbackRequest(
+        call_id=parsed_data["call_id"],
+        status=parsed_data["status"],
+        from_number=parsed_data.get("from_number"),
+        to_number=parsed_data.get("to_number"),
+        direction=parsed_data.get("direction"),
+        duration=parsed_data.get("duration"),
+        extra=parsed_data.get("extra", {}),
+    )
+
     await _process_status_update(workflow_run_id, status_update, workflow_run)
 
     return {"status": "success"}
@@ -1243,6 +1307,7 @@ async def handle_inbound_telephony(
     x_twilio_signature: Optional[str] = Header(None),
     x_vobiz_signature: Optional[str] = Header(None),
     x_vobiz_timestamp: Optional[str] = Header(None),
+    x_itniotech_signature: Optional[str] = Header(None),
 ):
     """Handle inbound telephony calls from any supported provider with common processing"""
     logger.info(f"Inbound call received for workflow_id: {workflow_id}")
@@ -1273,6 +1338,7 @@ async def handle_inbound_telephony(
         logger.info(f"Twilio signature header: {x_twilio_signature}")
         logger.info(f"Vobiz signature header: {x_vobiz_signature}")
         logger.info(f"Vobiz timestamp header: {x_vobiz_timestamp}")
+        logger.info(f"Itniotech signature header: {x_itniotech_signature}")
 
         webhook_body = ""
         if provider_class.PROVIDER_NAME == "vobiz":
@@ -1293,6 +1359,7 @@ async def handle_inbound_telephony(
             x_twilio_signature,
             x_vobiz_signature,
             x_vobiz_timestamp,
+            x_itniotech_signature,
         )
 
         if not is_valid:

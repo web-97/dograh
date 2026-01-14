@@ -89,6 +89,31 @@ class CloudonixConfigurationResponse(BaseModel):
     from_numbers: List[str]
 
 
+class ItniotechConfigurationRequest(BaseModel):
+    """Request schema for Itniotech configuration."""
+
+    provider: str = Field(default="itniotech")
+    api_key: str = Field(..., description="Itniotech API Key")
+    api_secret: str = Field(..., description="Itniotech API Secret")
+    base_url: Optional[str] = Field(
+        default="https://www.itniotech.com/api/voice",
+        description="Optional Itniotech API base URL",
+    )
+    from_numbers: List[str] = Field(
+        ..., min_length=1, description="List of Itniotech phone numbers"
+    )
+
+
+class ItniotechConfigurationResponse(BaseModel):
+    """Response schema for Itniotech configuration with masked sensitive fields."""
+
+    provider: str
+    api_key: str  # Masked
+    api_secret: str  # Masked
+    base_url: Optional[str]
+    from_numbers: List[str]
+
+
 class TelephonyConfigurationResponse(BaseModel):
     """Top-level telephony configuration response."""
 
@@ -96,3 +121,4 @@ class TelephonyConfigurationResponse(BaseModel):
     vonage: Optional[VonageConfigurationResponse] = None
     vobiz: Optional[VobizConfigurationResponse] = None
     cloudonix: Optional[CloudonixConfigurationResponse] = None
+    itniotech: Optional[ItniotechConfigurationResponse] = None

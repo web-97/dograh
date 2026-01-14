@@ -33,6 +33,7 @@ from api.services.pipecat.service_factory import (
 from api.services.pipecat.tracing_config import setup_pipeline_tracing
 from api.services.pipecat.transport_setup import (
     create_cloudonix_transport,
+    create_itniotech_transport,
     create_stasis_transport,
     create_twilio_transport,
     create_vobiz_transport,
@@ -299,6 +300,55 @@ async def run_pipeline_cloudonix(
         vad_config,
         ambient_noise_config,
         session_token,
+    )
+    await _run_pipeline(
+        transport,
+        workflow_id,
+        workflow_run_id,
+        user_id,
+        audio_config=audio_config,
+    )
+
+
+async def run_pipeline_itniotech(
+    websocket_client: WebSocket,
+    stream_sid: str,
+    call_sid: str,
+    workflow_id: int,
+    workflow_run_id: int,
+    user_id: int,
+) -> None:
+    """Run pipeline for Itniotech connections"""
+    logger.debug(
+        f"Running pipeline for Itniotech connection with workflow_id: {workflow_id} and workflow_run_id: {workflow_run_id}"
+    )
+    set_current_run_id(workflow_run_id)
+
+    cost_info = {"call_id": call_sid}
+    await db_client.update_workflow_run(workflow_run_id, cost_info=cost_info)
+
+    workflow = await db_client.get_workflow(workflow_id, user_id)
+    vad_config = None
+    ambient_noise_config = None
+    if workflow and workflow.workflow_configurations:
+        if "vad_configuration" in workflow.workflow_configurations:
+            vad_config = workflow.workflow_configurations["vad_configuration"]
+        if "ambient_noise_configuration" in workflow.workflow_configurations:
+            ambient_noise_config = workflow.workflow_configurations[
+                "ambient_noise_configuration"
+            ]
+
+    audio_config = create_audio_config(WorkflowRunMode.ITNIOTECH.value)
+
+    transport = await create_itniotech_transport(
+        websocket_client,
+        stream_sid,
+        call_sid,
+        workflow_run_id,
+        audio_config,
+        workflow.organization_id,
+        vad_config,
+        ambient_noise_config,
     )
     await _run_pipeline(
         transport,

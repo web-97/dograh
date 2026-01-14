@@ -8,6 +8,8 @@ from api.enums import OrganizationConfigurationKey
 from api.schemas.telephony_config import (
     CloudonixConfigurationRequest,
     CloudonixConfigurationResponse,
+    ItniotechConfigurationRequest,
+    ItniotechConfigurationResponse,
     TelephonyConfigurationResponse,
     TwilioConfigurationRequest,
     TwilioConfigurationResponse,
@@ -27,6 +29,7 @@ PROVIDER_MASKED_FIELDS = {
     "vonage": ["private_key", "api_key", "api_secret"],
     "vobiz": ["auth_id", "auth_token"],
     "cloudonix": ["bearer_token"],
+    "itniotech": ["api_key", "api_secret"],
 }
 
 
@@ -122,6 +125,28 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
                 from_numbers=from_numbers,
             ),
             vobiz=None,
+            itniotech=None,
+        )
+    elif stored_provider == "itniotech":
+        api_key = config.value.get("api_key", "")
+        api_secret = config.value.get("api_secret", "")
+        base_url = config.value.get("base_url")
+        from_numbers = (
+            config.value.get("from_numbers", []) if api_key and api_secret else []
+        )
+
+        return TelephonyConfigurationResponse(
+            twilio=None,
+            vonage=None,
+            vobiz=None,
+            cloudonix=None,
+            itniotech=ItniotechConfigurationResponse(
+                provider="itniotech",
+                api_key=mask_key(api_key) if api_key else "",
+                api_secret=mask_key(api_secret) if api_secret else "",
+                base_url=base_url,
+                from_numbers=from_numbers,
+            ),
         )
     else:
         return TelephonyConfigurationResponse()
@@ -134,6 +159,7 @@ async def save_telephony_configuration(
         VonageConfigurationRequest,
         VobizConfigurationRequest,
         CloudonixConfigurationRequest,
+        ItniotechConfigurationRequest,
     ],
     user: UserModel = Depends(get_user),
 ):
@@ -176,6 +202,14 @@ async def save_telephony_configuration(
             "provider": "cloudonix",
             "bearer_token": request.bearer_token,
             "domain_id": request.domain_id,
+            "from_numbers": request.from_numbers,
+        }
+    elif request.provider == "itniotech":
+        config_value = {
+            "provider": "itniotech",
+            "api_key": request.api_key,
+            "api_secret": request.api_secret,
+            "base_url": request.base_url,
             "from_numbers": request.from_numbers,
         }
     else:

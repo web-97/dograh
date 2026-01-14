@@ -9,6 +9,8 @@ import { getTelephonyConfigurationApiV1OrganizationsTelephonyConfigGet, saveTele
 import type {
   CloudonixConfigurationRequest,
   CloudonixConfigurationResponse,
+  ItniotechConfigurationRequest,
+  ItniotechConfigurationResponse,
   TelephonyConfigurationResponse,
   TwilioConfigurationRequest,
   VobizConfigurationRequest,
@@ -50,6 +52,10 @@ interface TelephonyConfigForm {
   // Cloudonix fields
   bearer_token?: string;
   domain_id?: string;
+  // Itniotech fields
+  itniotech_api_key?: string;
+  itniotech_api_secret?: string;
+  itniotech_base_url?: string;
   // Common field
   from_number: string;
 }
@@ -129,6 +135,16 @@ export default function ConfigureTelephonyPage() {
             if (cloudonixConfig.from_numbers?.length > 0) {
               setValue("from_number", cloudonixConfig.from_numbers[0]);
             }
+          } else if ((response.data as TelephonyConfigurationResponse)?.itniotech) {
+            const itniotechConfig = (response.data as TelephonyConfigurationResponse).itniotech as ItniotechConfigurationResponse;
+            setHasExistingConfig(true);
+            setValue("provider", "itniotech");
+            setValue("itniotech_api_key", itniotechConfig.api_key);
+            setValue("itniotech_api_secret", itniotechConfig.api_secret);
+            setValue("itniotech_base_url", itniotechConfig.base_url || "");
+            if (itniotechConfig.from_numbers?.length > 0) {
+              setValue("from_number", itniotechConfig.from_numbers[0]);
+            }
           }
         }
       } catch (error) {
@@ -150,7 +166,8 @@ export default function ConfigureTelephonyPage() {
         | TwilioConfigurationRequest
         | VonageConfigurationRequest
         | VobizConfigurationRequest
-        | CloudonixConfigurationRequest;
+        | CloudonixConfigurationRequest
+        | ItniotechConfigurationRequest;
 
       if (data.provider === "twilio") {
         requestBody = {
@@ -176,13 +193,22 @@ export default function ConfigureTelephonyPage() {
           auth_token: data.vobiz_auth_token,
         } as VobizConfigurationRequest;
       } else {
-        // Cloudonix
-        requestBody = {
-          provider: data.provider,
-          from_numbers: data.from_number ? [data.from_number] : [],
-          bearer_token: data.bearer_token!,
-          domain_id: data.domain_id!,
-        } as CloudonixConfigurationRequest;
+        if (data.provider === "cloudonix") {
+          requestBody = {
+            provider: data.provider,
+            from_numbers: data.from_number ? [data.from_number] : [],
+            bearer_token: data.bearer_token!,
+            domain_id: data.domain_id!,
+          } as CloudonixConfigurationRequest;
+        } else {
+          requestBody = {
+            provider: data.provider,
+            from_numbers: [data.from_number],
+            api_key: data.itniotech_api_key,
+            api_secret: data.itniotech_api_secret,
+            base_url: data.itniotech_base_url || undefined,
+          } as ItniotechConfigurationRequest;
+        }
       }
 
       const response = await saveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPost({
@@ -231,7 +257,9 @@ export default function ConfigureTelephonyPage() {
                     ? "Vonage"
                     : selectedProvider === "vobiz"
                     ? "Vobiz"
-                    : "Cloudonix"}{" "}
+                    : selectedProvider === "cloudonix"
+                    ? "Cloudonix"
+                    : "Itniotech"}{" "}
                   Setup Guide
                 </CardTitle>
                 <CardDescription>
@@ -270,6 +298,11 @@ export default function ConfigureTelephonyPage() {
                     <>
                       Vobiz is a telephony provider. Visit their documentation
                       for setup instructions.
+                    </>
+                  ) : selectedProvider === "itniotech" ? (
+                    <>
+                      Itniotech provides cloud telephony APIs for outbound and inbound calls.
+                      Configure your API key and secret, then point webhooks to Dograh.
                     </>
                   ) : (
                     <>
@@ -311,6 +344,24 @@ export default function ConfigureTelephonyPage() {
                       <p className="text-sm">
                         <strong>Note:</strong> Vobiz provides cloud-based telephony services
                         with global reach and competitive pricing.
+                      </p>
+                    </div>
+                  </div>
+                ) : selectedProvider === "itniotech" ? (
+                  <div className="space-y-4 text-sm">
+                    <div>
+                      <h4 className="font-semibold mb-2">Getting Started with Itniotech:</h4>
+                      <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                        <li>Create an Itniotech account and generate API credentials</li>
+                        <li>Whitelist your Dograh webhook URL in Itniotech if required</li>
+                        <li>Paste your API Key and Secret below</li>
+                        <li>Assign a caller ID number for outbound calls</li>
+                      </ol>
+                    </div>
+                    <div className="bg-muted border border-border rounded p-3">
+                      <p className="text-sm">
+                        <strong>Note:</strong> The default API base URL is https://www.itniotech.com/api/voice.
+                        Use a custom base URL only if Itniotech instructs you to.
                       </p>
                     </div>
                   </div>
@@ -362,6 +413,7 @@ export default function ConfigureTelephonyPage() {
                         <SelectItem value="vonage">Vonage</SelectItem>
                         <SelectItem value="vobiz">Vobiz</SelectItem>
                         <SelectItem value="cloudonix">Cloudonix</SelectItem>
+                        <SelectItem value="itniotech">Itniotech</SelectItem>
                       </SelectContent>
                     </Select>
                     {hasExistingConfig && (
@@ -659,6 +711,82 @@ export default function ConfigureTelephonyPage() {
                           Phone numbers can be fetched from Cloudonix DNIDs if not
                           specified
                         </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Itniotech-specific fields */}
+                  {selectedProvider === "itniotech" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="itniotech_api_key">API Key</Label>
+                        <Input
+                          id="itniotech_api_key"
+                          placeholder="ITNIO-API-KEY"
+                          {...register("itniotech_api_key", {
+                            required: selectedProvider === "itniotech" ? "API key is required" : false,
+                          })}
+                        />
+                        {errors.itniotech_api_key && (
+                          <p className="text-sm text-red-500">
+                            {errors.itniotech_api_key.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="itniotech_api_secret">API Secret</Label>
+                        <Input
+                          id="itniotech_api_secret"
+                          type="password"
+                          autoComplete="current-password"
+                          placeholder={
+                            hasExistingConfig
+                              ? "Leave masked to keep existing"
+                              : "Enter your API secret"
+                          }
+                          {...register("itniotech_api_secret", {
+                            required: selectedProvider === "itniotech" && !hasExistingConfig
+                              ? "API secret is required"
+                              : false,
+                          })}
+                        />
+                        {errors.itniotech_api_secret && (
+                          <p className="text-sm text-red-500">
+                            {errors.itniotech_api_secret.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="itniotech_base_url">API Base URL (Optional)</Label>
+                        <Input
+                          id="itniotech_base_url"
+                          placeholder="https://www.itniotech.com/api/voice"
+                          {...register("itniotech_base_url")}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="from_number">From Phone Number</Label>
+                        <Input
+                          id="from_number"
+                          autoComplete="tel"
+                          placeholder="+1234567890"
+                          {...register("from_number", {
+                            required: "Phone number is required",
+                            pattern: {
+                              value: /^\+[1-9]\d{1,14}$/,
+                              message:
+                                "Enter a valid phone number with country code (e.g., +1234567890)",
+                            },
+                          })}
+                        />
+                        {errors.from_number && (
+                          <p className="text-sm text-red-500">
+                            {errors.from_number.message}
+                          </p>
+                        )}
                       </div>
                     </>
                   )}

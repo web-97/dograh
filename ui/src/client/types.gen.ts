@@ -112,6 +112,40 @@ export type CloudonixConfigurationResponse = {
     from_numbers: Array<string>;
 };
 
+/**
+ * Request schema for Itniotech configuration.
+ */
+export type ItniotechConfigurationRequest = {
+    provider?: string;
+    /**
+     * Itniotech API Key
+     */
+    api_key: string;
+    /**
+     * Itniotech API Secret
+     */
+    api_secret: string;
+    /**
+     * Optional Itniotech API base URL
+     */
+    base_url?: string | null;
+    /**
+     * List of Itniotech phone numbers
+     */
+    from_numbers: Array<string>;
+};
+
+/**
+ * Response schema for Itniotech configuration with masked sensitive fields.
+ */
+export type ItniotechConfigurationResponse = {
+    provider: string;
+    api_key: string;
+    api_secret: string;
+    base_url?: string | null;
+    from_numbers: Array<string>;
+};
+
 export type CreateApiKeyRequest = {
     name: string;
 };
@@ -550,6 +584,7 @@ export type TelephonyConfigurationResponse = {
     vonage?: VonageConfigurationResponse | null;
     vobiz?: VobizConfigurationResponse | null;
     cloudonix?: CloudonixConfigurationResponse | null;
+    itniotech?: ItniotechConfigurationResponse | null;
 };
 
 export type TestSessionResponse = {
@@ -2972,7 +3007,7 @@ export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetRespons
 export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponse = GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses[keyof GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses];
 
 export type SaveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPostData = {
-    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest;
+    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest | ItniotechConfigurationRequest;
     headers?: {
         authorization?: string | null;
         'X-API-Key'?: string | null;
