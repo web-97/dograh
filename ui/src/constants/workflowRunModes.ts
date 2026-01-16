@@ -7,6 +7,7 @@ export const WORKFLOW_RUN_MODES = {
     VONAGE: 'vonage',
     VOBIZ: 'vobiz',
     CLOUDONIX: 'cloudonix',
+    LIVEKIT: 'livekit',
     STASIS: 'stasis',
     WEBRTC: 'webrtc',
     SMALL_WEBRTC: 'smallwebrtc',

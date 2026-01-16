@@ -9,6 +9,8 @@ import { getTelephonyConfigurationApiV1OrganizationsTelephonyConfigGet, saveTele
 import type {
   CloudonixConfigurationRequest,
   CloudonixConfigurationResponse,
+  LiveKitConfigurationRequest,
+  LiveKitConfigurationResponse,
   TelephonyConfigurationResponse,
   TwilioConfigurationRequest,
   VobizConfigurationRequest,
@@ -50,6 +52,12 @@ interface TelephonyConfigForm {
   // Cloudonix fields
   bearer_token?: string;
   domain_id?: string;
+  // LiveKit fields
+  server_url?: string;
+  api_key?: string;
+  api_secret?: string;
+  sip_trunk_id?: string;
+  room_prefix?: string;
   // Common field
   from_number: string;
 }
@@ -129,6 +137,18 @@ export default function ConfigureTelephonyPage() {
             if (cloudonixConfig.from_numbers?.length > 0) {
               setValue("from_number", cloudonixConfig.from_numbers[0]);
             }
+          } else if ((response.data as TelephonyConfigurationResponse)?.livekit) {
+            const livekitConfig = (response.data as TelephonyConfigurationResponse).livekit as LiveKitConfigurationResponse;
+            setHasExistingConfig(true);
+            setValue("provider", "livekit");
+            setValue("server_url", livekitConfig.server_url);
+            setValue("api_key", livekitConfig.api_key);
+            setValue("api_secret", livekitConfig.api_secret);
+            setValue("sip_trunk_id", livekitConfig.sip_trunk_id);
+            setValue("room_prefix", livekitConfig.room_prefix);
+            if (livekitConfig.from_numbers?.length > 0) {
+              setValue("from_number", livekitConfig.from_numbers[0]);
+            }
           }
         }
       } catch (error) {
@@ -150,7 +170,8 @@ export default function ConfigureTelephonyPage() {
         | TwilioConfigurationRequest
         | VonageConfigurationRequest
         | VobizConfigurationRequest
-        | CloudonixConfigurationRequest;
+        | CloudonixConfigurationRequest
+        | LiveKitConfigurationRequest;
 
       if (data.provider === "twilio") {
         requestBody = {
@@ -175,6 +196,16 @@ export default function ConfigureTelephonyPage() {
           auth_id: data.auth_id,
           auth_token: data.vobiz_auth_token,
         } as VobizConfigurationRequest;
+      } else if (data.provider === "livekit") {
+        requestBody = {
+          provider: data.provider,
+          server_url: data.server_url,
+          api_key: data.api_key,
+          api_secret: data.api_secret,
+          sip_trunk_id: data.sip_trunk_id,
+          from_numbers: data.from_number ? [data.from_number] : [],
+          room_prefix: data.room_prefix || "dograh-call",
+        } as LiveKitConfigurationRequest;
       } else {
         // Cloudonix
         requestBody = {
@@ -231,7 +262,9 @@ export default function ConfigureTelephonyPage() {
                     ? "Vonage"
                     : selectedProvider === "vobiz"
                     ? "Vobiz"
-                    : "Cloudonix"}{" "}
+                    : selectedProvider === "cloudonix"
+                    ? "Cloudonix"
+                    : "LiveKit"}{" "}
                   Setup Guide
                 </CardTitle>
                 <CardDescription>
@@ -270,6 +303,11 @@ export default function ConfigureTelephonyPage() {
                     <>
                       Vobiz is a telephony provider. Visit their documentation
                       for setup instructions.
+                    </>
+                  ) : selectedProvider === "livekit" ? (
+                    <>
+                      LiveKit SIP lets you dial PSTN numbers by creating SIP participants.
+                      Configure a SIP trunk and copy the server URL, API key/secret, and trunk ID.
                     </>
                   ) : (
                     <>
@@ -311,6 +349,24 @@ export default function ConfigureTelephonyPage() {
                       <p className="text-sm">
                         <strong>Note:</strong> Vobiz provides cloud-based telephony services
                         with global reach and competitive pricing.
+                      </p>
+                    </div>
+                  </div>
+                ) : selectedProvider === "livekit" ? (
+                  <div className="space-y-4 text-sm">
+                    <div>
+                      <h4 className="font-semibold mb-2">Getting Started with LiveKit SIP:</h4>
+                      <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                        <li>Deploy LiveKit and enable the SIP service</li>
+                        <li>Create a SIP trunk and note its trunk ID</li>
+                        <li>Choose a caller ID in E.164 format if required by the trunk</li>
+                        <li>Paste the server URL, API key/secret, and trunk ID below</li>
+                      </ol>
+                    </div>
+                    <div className="bg-muted border border-border rounded p-3">
+                      <p className="text-sm">
+                        <strong>Note:</strong> LiveKit SIP uses your SIP trunk to dial PSTN
+                        numbers and joins the call to a LiveKit room.
                       </p>
                     </div>
                   </div>
@@ -362,6 +418,7 @@ export default function ConfigureTelephonyPage() {
                         <SelectItem value="vonage">Vonage</SelectItem>
                         <SelectItem value="vobiz">Vobiz</SelectItem>
                         <SelectItem value="cloudonix">Cloudonix</SelectItem>
+                        <SelectItem value="livekit">LiveKit</SelectItem>
                       </SelectContent>
                     </Select>
                     {hasExistingConfig && (
@@ -659,6 +716,111 @@ export default function ConfigureTelephonyPage() {
                           Phone numbers can be fetched from Cloudonix DNIDs if not
                           specified
                         </p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedProvider === "livekit" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="server_url">LiveKit Server URL</Label>
+                        <Input
+                          id="server_url"
+                          placeholder="https://livekit.example.com"
+                          {...register("server_url", {
+                            required: selectedProvider === "livekit" ? "Server URL is required" : false,
+                          })}
+                        />
+                        {errors.server_url && (
+                          <p className="text-sm text-red-500">
+                            {errors.server_url.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="api_key">API Key</Label>
+                        <Input
+                          id="api_key"
+                          placeholder="LK_API_KEY"
+                          {...register("api_key", {
+                            required:
+                              selectedProvider === "livekit" && !hasExistingConfig
+                                ? "API Key is required"
+                                : false,
+                          })}
+                        />
+                        {errors.api_key && (
+                          <p className="text-sm text-red-500">
+                            {errors.api_key.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="api_secret">API Secret</Label>
+                        <Input
+                          id="api_secret"
+                          type="password"
+                          placeholder="LK_API_SECRET"
+                          {...register("api_secret", {
+                            required:
+                              selectedProvider === "livekit" && !hasExistingConfig
+                                ? "API Secret is required"
+                                : false,
+                          })}
+                        />
+                        {errors.api_secret && (
+                          <p className="text-sm text-red-500">
+                            {errors.api_secret.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="sip_trunk_id">SIP Trunk ID</Label>
+                        <Input
+                          id="sip_trunk_id"
+                          placeholder="TRUNK_ID"
+                          {...register("sip_trunk_id", {
+                            required: selectedProvider === "livekit" ? "SIP Trunk ID is required" : false,
+                          })}
+                        />
+                        {errors.sip_trunk_id && (
+                          <p className="text-sm text-red-500">
+                            {errors.sip_trunk_id.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="room_prefix">Room Prefix</Label>
+                        <Input
+                          id="room_prefix"
+                          placeholder="dograh-call"
+                          {...register("room_prefix")}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="from_number">Caller ID (Optional)</Label>
+                        <Input
+                          id="from_number"
+                          autoComplete="tel"
+                          placeholder="+1234567890"
+                          {...register("from_number", {
+                            pattern: {
+                              value: /^\+?[1-9]\d{1,14}$/,
+                              message:
+                                "Enter a valid phone number with country code (e.g., +1234567890)",
+                            },
+                          })}
+                        />
+                        {errors.from_number && (
+                          <p className="text-sm text-red-500">
+                            {errors.from_number.message}
+                          </p>
+                        )}
                       </div>
                     </>
                   )}

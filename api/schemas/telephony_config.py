@@ -89,6 +89,36 @@ class CloudonixConfigurationResponse(BaseModel):
     from_numbers: List[str]
 
 
+class LiveKitConfigurationRequest(BaseModel):
+    """Request schema for LiveKit configuration."""
+
+    provider: str = Field(default="livekit")
+    server_url: str = Field(..., description="LiveKit server URL")
+    api_key: str = Field(..., description="LiveKit API Key")
+    api_secret: str = Field(..., description="LiveKit API Secret")
+    sip_trunk_id: str = Field(..., description="LiveKit SIP trunk ID")
+    from_numbers: List[str] = Field(
+        default_factory=list,
+        description="Optional list of caller IDs (E.164 format)",
+    )
+    room_prefix: str = Field(
+        default="dograh-call",
+        description="Room name prefix for LiveKit SIP calls",
+    )
+
+
+class LiveKitConfigurationResponse(BaseModel):
+    """Response schema for LiveKit configuration with masked sensitive fields."""
+
+    provider: str
+    server_url: str
+    api_key: str
+    api_secret: str
+    sip_trunk_id: str
+    from_numbers: List[str]
+    room_prefix: str
+
+
 class TelephonyConfigurationResponse(BaseModel):
     """Top-level telephony configuration response."""
 
@@ -96,3 +126,4 @@ class TelephonyConfigurationResponse(BaseModel):
     vonage: Optional[VonageConfigurationResponse] = None
     vobiz: Optional[VobizConfigurationResponse] = None
     cloudonix: Optional[CloudonixConfigurationResponse] = None
+    livekit: Optional[LiveKitConfigurationResponse] = None
