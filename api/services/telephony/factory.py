@@ -74,6 +74,13 @@ async def load_telephony_config(organization_id: int) -> Dict[str, Any]:
                 "domain_id": config.value.get("domain_id"),
                 "from_numbers": config.value.get("from_numbers", []),
             }
+        elif provider == "livekit":
+            return {
+                "provider": "livekit",
+                "api_key": config.value.get("api_key"),
+                "api_secret": config.value.get("api_secret"),
+                "url": config.value.get("url"),
+            }
         else:
             raise ValueError(f"Unknown provider in config: {provider}")
 
@@ -113,6 +120,9 @@ async def get_telephony_provider(organization_id: int) -> TelephonyProvider:
 
     elif provider_type == "cloudonix":
         return CloudonixProvider(config)
+
+    elif provider_type == "livekit":
+        raise ValueError("livekit_provider_not_supported_for_call_initiation")
 
     else:
         raise ValueError(f"Unknown telephony provider: {provider_type}")

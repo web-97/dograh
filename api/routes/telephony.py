@@ -108,7 +108,10 @@ async def initiate_call(
     """Initiate a call using the configured telephony provider."""
 
     # Get the telephony provider for the organization
-    provider = await get_telephony_provider(user.selected_organization_id)
+    try:
+        provider = await get_telephony_provider(user.selected_organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Validate provider is configured
     if not provider.validate_config():
