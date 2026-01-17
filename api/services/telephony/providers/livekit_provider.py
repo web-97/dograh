@@ -39,10 +39,12 @@ class LiveKitProvider(TelephonyProvider):
             url=self._config.get("url", ""),
         )
 
+        agent_identity = kwargs.get("identity") or f"agent-{workflow_run_id or uuid.uuid4()}"
+        agent_name = kwargs.get("participant_name") or "Agent"
         token, identity = service.create_participant_token(
             room_name=room_name,
-            identity=kwargs.get("identity"),
-            participant_name=kwargs.get("participant_name"),
+            identity=agent_identity,
+            participant_name=agent_name,
             metadata=kwargs.get("metadata"),
         )
 
@@ -52,8 +54,8 @@ class LiveKitProvider(TelephonyProvider):
         if not sip_trunk_id:
             raise ValueError("livekit_sip_trunk_id_required")
 
-        caller_identity = f"sip-{workflow_run_id or uuid.uuid4()}"
-        participant_name = kwargs.get("participant_name") or "Caller"
+        caller_identity = f"caller-{workflow_run_id or uuid.uuid4()}"
+        caller_name = kwargs.get("caller_name") or "Caller"
         participant_metadata = kwargs.get("participant_metadata")
 
         from livekit import api as livekit_api
@@ -64,7 +66,7 @@ class LiveKitProvider(TelephonyProvider):
             sip_number=to_number,
             room_name=room_name,
             participant_identity=caller_identity,
-            participant_name=participant_name,
+            participant_name=caller_name,
             participant_metadata=participant_metadata or "",
             wait_until_answered=False,
         )
