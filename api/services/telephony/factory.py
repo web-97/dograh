@@ -82,6 +82,8 @@ async def load_telephony_config(organization_id: int) -> Dict[str, Any]:
                 "api_key": config.value.get("api_key"),
                 "api_secret": config.value.get("api_secret"),
                 "sip_trunk_id": config.value.get("sip_trunk_id"),
+                "agent_dispatch_url": config.value.get("agent_dispatch_url"),
+                "agent_identity": config.value.get("agent_identity", "dograh-agent"),
                 "from_numbers": config.value.get("from_numbers", []),
                 "room_prefix": config.value.get("room_prefix", "dograh-call"),
             }

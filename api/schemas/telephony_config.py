@@ -97,6 +97,14 @@ class LiveKitConfigurationRequest(BaseModel):
     api_key: str = Field(..., description="LiveKit API Key")
     api_secret: str = Field(..., description="LiveKit API Secret")
     sip_trunk_id: str = Field(..., description="LiveKit SIP trunk ID")
+    agent_dispatch_url: str = Field(
+        ...,
+        description="URL to notify when a room is ready so the agent can join",
+    )
+    agent_identity: str = Field(
+        default="dograh-agent",
+        description="Participant identity used when the agent joins LiveKit",
+    )
     from_numbers: List[str] = Field(
         default_factory=list,
         description="Optional list of caller IDs (E.164 format)",
@@ -115,6 +123,8 @@ class LiveKitConfigurationResponse(BaseModel):
     api_key: str
     api_secret: str
     sip_trunk_id: str
+    agent_dispatch_url: str
+    agent_identity: str
     from_numbers: List[str]
     room_prefix: str
 

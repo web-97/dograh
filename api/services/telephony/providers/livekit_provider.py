@@ -42,6 +42,8 @@ class LiveKitProvider(TelephonyProvider):
                 - api_key: LiveKit API key
                 - api_secret: LiveKit API secret
                 - sip_trunk_id: LiveKit SIP trunk ID
+                - agent_dispatch_url: URL to notify when a room is ready for the agent
+                - agent_identity: Identity used by the agent to join the room
                 - from_numbers: Optional list of caller IDs
                 - room_prefix: Optional room name prefix
         """
@@ -49,6 +51,8 @@ class LiveKitProvider(TelephonyProvider):
         self.api_key = config.get("api_key")
         self.api_secret = config.get("api_secret")
         self.sip_trunk_id = config.get("sip_trunk_id")
+        self.agent_dispatch_url = config.get("agent_dispatch_url")
+        self.agent_identity = config.get("agent_identity", "dograh-agent")
         self.from_numbers = config.get("from_numbers", [])
         self.room_prefix = config.get("room_prefix", "dograh-call")
 
@@ -76,6 +80,26 @@ class LiveKitProvider(TelephonyProvider):
         }
         return jwt.encode(payload, self.api_secret, algorithm="HS256")
 
+    def _create_room_token(self, room_name: str, identity: str) -> str:
+        if not self.api_key or not self.api_secret:
+            raise ValueError("LiveKit API key/secret not configured")
+
+        now = int(time.time())
+        payload = {
+            "iss": self.api_key,
+            "sub": identity,
+            "iat": now,
+            "nbf": now - 10,
+            "exp": now + 3600,
+            "video": {
+                "room": room_name,
+                "room_join": True,
+                "can_publish": True,
+                "can_subscribe": True,
+            },
+        }
+        return jwt.encode(payload, self.api_secret, algorithm="HS256")
+
     def _get_headers(self) -> Dict[str, str]:
         token = self._create_api_token()
         return {
@@ -86,6 +110,43 @@ class LiveKitProvider(TelephonyProvider):
     def _build_room_name(self, workflow_run_id: Optional[int]) -> str:
         suffix = workflow_run_id or uuid.uuid4().hex[:12]
         return f"{self.room_prefix}-{suffix}"
+
+    async def _dispatch_agent_join(
+        self,
+        room_name: str,
+        workflow_run_id: Optional[int],
+        workflow_id: Optional[int],
+        user_id: Optional[int],
+    ) -> None:
+        if not self.agent_dispatch_url:
+            raise ValueError(
+                "LiveKit agent dispatch URL is not configured. "
+                "Set agent_dispatch_url to allow the agent to join the room."
+            )
+
+        identity = self.agent_identity or "dograh-agent"
+        agent_token = self._create_room_token(room_name, identity)
+
+        payload = {
+            "room_name": room_name,
+            "server_url": self.server_url,
+            "agent_identity": identity,
+            "agent_token": agent_token,
+            "workflow_run_id": workflow_run_id,
+            "workflow_id": workflow_id,
+            "user_id": user_id,
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self.agent_dispatch_url, json=payload
+            ) as response:
+                if response.status not in {200, 201, 202}:
+                    error_text = await response.text()
+                    raise Exception(
+                        "Failed to dispatch LiveKit agent join request: "
+                        f"{response.status} {error_text}"
+                    )
 
     async def initiate_call(
         self,
@@ -133,6 +194,10 @@ class LiveKitProvider(TelephonyProvider):
 
                 response_data = await response.json()
 
+        workflow_id = kwargs.get("workflow_id")
+        user_id = kwargs.get("user_id")
+        await self._dispatch_agent_join(room_name, workflow_run_id, workflow_id, user_id)
+
         call_id = (
             response_data.get("sip_call_id")
             or response_data.get("call_id")
@@ -157,7 +222,13 @@ class LiveKitProvider(TelephonyProvider):
         return self.from_numbers
 
     def validate_config(self) -> bool:
-        return bool(self.server_url and self.api_key and self.api_secret and self.sip_trunk_id)
+        return bool(
+            self.server_url
+            and self.api_key
+            and self.api_secret
+            and self.sip_trunk_id
+            and self.agent_dispatch_url
+        )
 
     async def verify_webhook_signature(
         self, url: str, params: Dict[str, Any], signature: str

@@ -57,6 +57,8 @@ interface TelephonyConfigForm {
   api_key?: string;
   api_secret?: string;
   sip_trunk_id?: string;
+  agent_dispatch_url?: string;
+  agent_identity?: string;
   room_prefix?: string;
   // Common field
   from_number: string;
@@ -145,6 +147,8 @@ export default function ConfigureTelephonyPage() {
             setValue("api_key", livekitConfig.api_key);
             setValue("api_secret", livekitConfig.api_secret);
             setValue("sip_trunk_id", livekitConfig.sip_trunk_id);
+            setValue("agent_dispatch_url", livekitConfig.agent_dispatch_url);
+            setValue("agent_identity", livekitConfig.agent_identity);
             setValue("room_prefix", livekitConfig.room_prefix);
             if (livekitConfig.from_numbers?.length > 0) {
               setValue("from_number", livekitConfig.from_numbers[0]);
@@ -203,6 +207,8 @@ export default function ConfigureTelephonyPage() {
           api_key: data.api_key,
           api_secret: data.api_secret,
           sip_trunk_id: data.sip_trunk_id,
+          agent_dispatch_url: data.agent_dispatch_url,
+          agent_identity: data.agent_identity,
           from_numbers: data.from_number ? [data.from_number] : [],
           room_prefix: data.room_prefix || "dograh-call",
         } as LiveKitConfigurationRequest;
@@ -791,6 +797,40 @@ export default function ConfigureTelephonyPage() {
                             {errors.sip_trunk_id.message}
                           </p>
                         )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="agent_dispatch_url">Agent Dispatch URL</Label>
+                        <Input
+                          id="agent_dispatch_url"
+                          placeholder="https://agent.example.com/livekit/dispatch"
+                          {...register("agent_dispatch_url", {
+                            required:
+                              selectedProvider === "livekit"
+                                ? "Agent dispatch URL is required"
+                                : false,
+                          })}
+                        />
+                        {errors.agent_dispatch_url && (
+                          <p className="text-sm text-red-500">
+                            {errors.agent_dispatch_url.message}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          This endpoint is called to let the agent join the LiveKit room.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="agent_identity">Agent Identity</Label>
+                        <Input
+                          id="agent_identity"
+                          placeholder="dograh-agent"
+                          {...register("agent_identity")}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Defaults to dograh-agent if not provided.
+                        </p>
                       </div>
 
                       <div className="space-y-2">

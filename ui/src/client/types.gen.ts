@@ -134,6 +134,14 @@ export type LiveKitConfigurationRequest = {
      */
     sip_trunk_id: string;
     /**
+     * URL to notify when a room is ready so the agent can join
+     */
+    agent_dispatch_url: string;
+    /**
+     * Participant identity used when the agent joins LiveKit
+     */
+    agent_identity?: string;
+    /**
      * Optional list of caller IDs (E.164 format)
      */
     from_numbers?: Array<string>;
@@ -152,6 +160,8 @@ export type LiveKitConfigurationResponse = {
     api_key: string;
     api_secret: string;
     sip_trunk_id: string;
+    agent_dispatch_url: string;
+    agent_identity: string;
     from_numbers: Array<string>;
     room_prefix: string;
 };

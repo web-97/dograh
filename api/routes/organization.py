@@ -131,6 +131,8 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
         api_key = config.value.get("api_key", "")
         api_secret = config.value.get("api_secret", "")
         sip_trunk_id = config.value.get("sip_trunk_id", "")
+        agent_dispatch_url = config.value.get("agent_dispatch_url", "")
+        agent_identity = config.value.get("agent_identity", "dograh-agent")
         from_numbers = config.value.get("from_numbers", [])
         room_prefix = config.value.get("room_prefix", "dograh-call")
 
@@ -145,6 +147,8 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
                 api_key=mask_key(api_key) if api_key else "",
                 api_secret=mask_key(api_secret) if api_secret else "",
                 sip_trunk_id=sip_trunk_id,
+                agent_dispatch_url=agent_dispatch_url,
+                agent_identity=agent_identity,
                 from_numbers=from_numbers,
                 room_prefix=room_prefix,
             ),
@@ -212,6 +216,8 @@ async def save_telephony_configuration(
             "api_key": request.api_key,
             "api_secret": request.api_secret,
             "sip_trunk_id": request.sip_trunk_id,
+            "agent_dispatch_url": request.agent_dispatch_url,
+            "agent_identity": request.agent_identity,
             "from_numbers": request.from_numbers,
             "room_prefix": request.room_prefix,
         }
