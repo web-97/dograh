@@ -8,7 +8,7 @@ from api.services.telephony.base import CallInitiationResult, TelephonyProvider
 
 class LiveKitProvider(TelephonyProvider):
     PROVIDER_NAME = WorkflowRunMode.LIVEKIT.value
-    WEBHOOK_ENDPOINT = "livekit"
+    WEBHOOK_ENDPOINT = None
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self._config = config
