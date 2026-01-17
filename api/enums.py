@@ -22,6 +22,7 @@ class WorkflowRunMode(Enum):
     VONAGE = "vonage"
     VOBIZ = "vobiz"
     CLOUDONIX = "cloudonix"
+    LIVEKIT = "livekit"
     STASIS = "stasis"
     WEBRTC = "webrtc"
     SMALLWEBRTC = "smallwebrtc"

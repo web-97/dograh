@@ -112,6 +112,60 @@ export type CloudonixConfigurationResponse = {
     from_numbers: Array<string>;
 };
 
+/**
+ * Request schema for LiveKit configuration.
+ */
+export type LiveKitConfigurationRequest = {
+    provider?: string;
+    /**
+     * LiveKit server URL
+     */
+    server_url: string;
+    /**
+     * LiveKit API Key
+     */
+    api_key: string;
+    /**
+     * LiveKit API Secret
+     */
+    api_secret: string;
+    /**
+     * LiveKit SIP trunk ID
+     */
+    sip_trunk_id: string;
+    /**
+     * URL to notify when a room is ready so the agent can join
+     */
+    agent_dispatch_url?: string | null;
+    /**
+     * Participant identity used when the agent joins LiveKit
+     */
+    agent_identity?: string;
+    /**
+     * Optional list of caller IDs (E.164 format)
+     */
+    from_numbers?: Array<string>;
+    /**
+     * Room name prefix for LiveKit SIP calls
+     */
+    room_prefix?: string;
+};
+
+/**
+ * Response schema for LiveKit configuration with masked sensitive fields.
+ */
+export type LiveKitConfigurationResponse = {
+    provider: string;
+    server_url: string;
+    api_key: string;
+    api_secret: string;
+    sip_trunk_id: string;
+    agent_dispatch_url?: string | null;
+    agent_identity: string;
+    from_numbers: Array<string>;
+    room_prefix: string;
+};
+
 export type CreateApiKeyRequest = {
     name: string;
 };
@@ -550,6 +604,7 @@ export type TelephonyConfigurationResponse = {
     vonage?: VonageConfigurationResponse | null;
     vobiz?: VobizConfigurationResponse | null;
     cloudonix?: CloudonixConfigurationResponse | null;
+    livekit?: LiveKitConfigurationResponse | null;
 };
 
 export type TestSessionResponse = {
@@ -2972,7 +3027,7 @@ export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetRespons
 export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponse = GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses[keyof GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses];
 
 export type SaveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPostData = {
-    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest;
+    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest | LiveKitConfigurationRequest;
     headers?: {
         authorization?: string | null;
         'X-API-Key'?: string | null;

@@ -8,7 +8,15 @@ import uuid
 from datetime import UTC, datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, WebSocket
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Request,
+    WebSocket,
+)
 from loguru import logger
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -30,6 +38,7 @@ from api.services.telephony.factory import (
     get_all_telephony_providers,
     get_telephony_provider,
 )
+from api.services.telephony.livekit_agent_dispatcher import dispatch_livekit_agent
 from api.utils.telephony_helper import (
     generic_hangup_response,
     normalize_webhook_data,
@@ -99,6 +108,16 @@ class StatusCallbackRequest(BaseModel):
             duration=data.get("duration"),
             extra=data,
         )
+
+
+class LiveKitAgentDispatchRequest(BaseModel):
+    room_name: str
+    server_url: str
+    agent_identity: str
+    agent_token: str
+    workflow_run_id: Optional[int] = None
+    workflow_id: Optional[int] = None
+    user_id: Optional[int] = None
 
 
 @router.post("/initiate-call")
@@ -191,6 +210,16 @@ async def initiate_call(
     )
 
     return {"message": f"Call initiated successfully with run name {workflow_run_name}"}
+
+
+@router.post("/livekit/dispatch")
+async def livekit_dispatch_agent(
+    request: LiveKitAgentDispatchRequest,
+    background_tasks: BackgroundTasks,
+):
+    """Receive LiveKit agent dispatch payloads for the built-in agent."""
+    background_tasks.add_task(dispatch_livekit_agent, request)
+    return {"status": "accepted"}
 
 
 async def _verify_organization_phone_number(

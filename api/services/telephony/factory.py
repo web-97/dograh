@@ -12,6 +12,7 @@ from api.db import db_client
 from api.enums import OrganizationConfigurationKey
 from api.services.telephony.base import TelephonyProvider
 from api.services.telephony.providers.cloudonix_provider import CloudonixProvider
+from api.services.telephony.providers.livekit_provider import LiveKitProvider
 from api.services.telephony.providers.twilio_provider import TwilioProvider
 from api.services.telephony.providers.vobiz_provider import VobizProvider
 from api.services.telephony.providers.vonage_provider import VonageProvider
@@ -74,6 +75,18 @@ async def load_telephony_config(organization_id: int) -> Dict[str, Any]:
                 "domain_id": config.value.get("domain_id"),
                 "from_numbers": config.value.get("from_numbers", []),
             }
+        elif provider == "livekit":
+            return {
+                "provider": "livekit",
+                "server_url": config.value.get("server_url"),
+                "api_key": config.value.get("api_key"),
+                "api_secret": config.value.get("api_secret"),
+                "sip_trunk_id": config.value.get("sip_trunk_id"),
+                "agent_dispatch_url": config.value.get("agent_dispatch_url"),
+                "agent_identity": config.value.get("agent_identity", "dograh-agent"),
+                "from_numbers": config.value.get("from_numbers", []),
+                "room_prefix": config.value.get("room_prefix", "dograh-call"),
+            }
         else:
             raise ValueError(f"Unknown provider in config: {provider}")
 
@@ -114,6 +127,9 @@ async def get_telephony_provider(organization_id: int) -> TelephonyProvider:
     elif provider_type == "cloudonix":
         return CloudonixProvider(config)
 
+    elif provider_type == "livekit":
+        return LiveKitProvider(config)
+
     else:
         raise ValueError(f"Unknown telephony provider: {provider_type}")
 
@@ -125,4 +141,4 @@ async def get_all_telephony_providers() -> List[Type[TelephonyProvider]]:
     Returns:
         List of provider classes that can be used for webhook detection
     """
-    return [TwilioProvider, VobizProvider, VonageProvider]
+    return [TwilioProvider, VobizProvider, VonageProvider, LiveKitProvider]

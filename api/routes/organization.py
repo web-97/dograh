@@ -8,6 +8,8 @@ from api.enums import OrganizationConfigurationKey
 from api.schemas.telephony_config import (
     CloudonixConfigurationRequest,
     CloudonixConfigurationResponse,
+    LiveKitConfigurationRequest,
+    LiveKitConfigurationResponse,
     TelephonyConfigurationResponse,
     TwilioConfigurationRequest,
     TwilioConfigurationResponse,
@@ -27,6 +29,7 @@ PROVIDER_MASKED_FIELDS = {
     "vonage": ["private_key", "api_key", "api_secret"],
     "vobiz": ["auth_id", "auth_token"],
     "cloudonix": ["bearer_token"],
+    "livekit": ["api_key", "api_secret"],
 }
 
 
@@ -123,6 +126,33 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
             ),
             vobiz=None,
         )
+    elif stored_provider == "livekit":
+        server_url = config.value.get("server_url", "")
+        api_key = config.value.get("api_key", "")
+        api_secret = config.value.get("api_secret", "")
+        sip_trunk_id = config.value.get("sip_trunk_id", "")
+        agent_dispatch_url = config.value.get("agent_dispatch_url")
+        agent_identity = config.value.get("agent_identity", "dograh-agent")
+        from_numbers = config.value.get("from_numbers", [])
+        room_prefix = config.value.get("room_prefix", "dograh-call")
+
+        return TelephonyConfigurationResponse(
+            twilio=None,
+            vonage=None,
+            vobiz=None,
+            cloudonix=None,
+            livekit=LiveKitConfigurationResponse(
+                provider="livekit",
+                server_url=server_url,
+                api_key=mask_key(api_key) if api_key else "",
+                api_secret=mask_key(api_secret) if api_secret else "",
+                sip_trunk_id=sip_trunk_id,
+                agent_dispatch_url=agent_dispatch_url,
+                agent_identity=agent_identity,
+                from_numbers=from_numbers,
+                room_prefix=room_prefix,
+            ),
+        )
     else:
         return TelephonyConfigurationResponse()
 
@@ -134,6 +164,7 @@ async def save_telephony_configuration(
         VonageConfigurationRequest,
         VobizConfigurationRequest,
         CloudonixConfigurationRequest,
+        LiveKitConfigurationRequest,
     ],
     user: UserModel = Depends(get_user),
 ):
@@ -177,6 +208,18 @@ async def save_telephony_configuration(
             "bearer_token": request.bearer_token,
             "domain_id": request.domain_id,
             "from_numbers": request.from_numbers,
+        }
+    elif request.provider == "livekit":
+        config_value = {
+            "provider": "livekit",
+            "server_url": request.server_url,
+            "api_key": request.api_key,
+            "api_secret": request.api_secret,
+            "sip_trunk_id": request.sip_trunk_id,
+            "agent_dispatch_url": request.agent_dispatch_url,
+            "agent_identity": request.agent_identity,
+            "from_numbers": request.from_numbers,
+            "room_prefix": request.room_prefix,
         }
     else:
         raise HTTPException(
