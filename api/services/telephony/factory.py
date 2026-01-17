@@ -12,6 +12,7 @@ from api.db import db_client
 from api.enums import OrganizationConfigurationKey
 from api.services.telephony.base import TelephonyProvider
 from api.services.telephony.providers.cloudonix_provider import CloudonixProvider
+from api.services.telephony.providers.livekit_provider import LiveKitProvider
 from api.services.telephony.providers.twilio_provider import TwilioProvider
 from api.services.telephony.providers.vobiz_provider import VobizProvider
 from api.services.telephony.providers.vonage_provider import VonageProvider
@@ -74,6 +75,15 @@ async def load_telephony_config(organization_id: int) -> Dict[str, Any]:
                 "domain_id": config.value.get("domain_id"),
                 "from_numbers": config.value.get("from_numbers", []),
             }
+        elif provider == "livekit":
+            return {
+                "provider": "livekit",
+                "api_key": config.value.get("api_key"),
+                "api_secret": config.value.get("api_secret"),
+                "url": config.value.get("url"),
+                "sip_trunk_id": config.value.get("sip_trunk_id"),
+                "sip_call_to": config.value.get("sip_call_to"),
+            }
         else:
             raise ValueError(f"Unknown provider in config: {provider}")
 
@@ -113,6 +123,9 @@ async def get_telephony_provider(organization_id: int) -> TelephonyProvider:
 
     elif provider_type == "cloudonix":
         return CloudonixProvider(config)
+
+    elif provider_type == "livekit":
+        return LiveKitProvider(config)
 
     else:
         raise ValueError(f"Unknown telephony provider: {provider_type}")

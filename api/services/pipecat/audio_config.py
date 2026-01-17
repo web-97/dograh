@@ -118,6 +118,7 @@ def create_audio_config(transport_type: str) -> AudioConfig:
     elif transport_type in [
         WorkflowRunMode.WEBRTC.value,
         WorkflowRunMode.SMALLWEBRTC.value,
+        WorkflowRunMode.LIVEKIT.value,
     ]:
         # WebRTC typically uses 24kHz or 48kHz, but we limit pipeline to 16kHz
         # The transport will handle resampling between 24kHz and 16kHz

@@ -23,6 +23,10 @@ import {
 } from "@/components/ui/dialog";
 import { useUserConfig } from "@/context/UserConfigContext";
 
+type TelephonyConfigurationWithLiveKit = {
+    livekit?: unknown;
+};
+
 interface PhoneCallDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -60,7 +64,18 @@ export const PhoneCallDialog = ({
                     headers: { 'Authorization': `Bearer ${accessToken}` },
                 });
 
-                if (configResponse.error || (!configResponse.data?.twilio && !configResponse.data?.vonage && !configResponse.data?.vobiz && !configResponse.data?.cloudonix)) {
+                const hasLivekit = Boolean(
+                    (configResponse.data as TelephonyConfigurationWithLiveKit | undefined)?.livekit
+                );
+                const hasConfiguredProvider = Boolean(
+                    configResponse.data?.twilio ||
+                    configResponse.data?.vonage ||
+                    configResponse.data?.vobiz ||
+                    configResponse.data?.cloudonix ||
+                    hasLivekit
+                );
+
+                if (configResponse.error || !hasConfiguredProvider) {
                     setNeedsConfiguration(true);
                 } else {
                     setNeedsConfiguration(false);

@@ -34,6 +34,7 @@ from api.services.pipecat.service_factory import (
 from api.services.pipecat.tracing_config import setup_pipeline_tracing
 from api.services.pipecat.transport_setup import (
     create_cloudonix_transport,
+    create_livekit_transport,
     create_stasis_transport,
     create_twilio_transport,
     create_vobiz_transport,
@@ -340,6 +341,54 @@ async def run_pipeline_smallwebrtc(
 
     transport = create_webrtc_transport(
         webrtc_connection,
+        workflow_run_id,
+        audio_config,
+        vad_config,
+        ambient_noise_config,
+    )
+    await _run_pipeline(
+        transport,
+        workflow_id,
+        workflow_run_id,
+        user_id,
+        call_context_vars=call_context_vars,
+        audio_config=audio_config,
+    )
+
+
+async def run_pipeline_livekit(
+    url: str,
+    token: str,
+    room_name: str,
+    workflow_id: int,
+    workflow_run_id: int,
+    user_id: int,
+    call_context_vars: dict = {},
+) -> None:
+    """Run pipeline for LiveKit connections."""
+    logger.debug(
+        "Running pipeline for LiveKit connection with "
+        f"workflow_id: {workflow_id} and workflow_run_id: {workflow_run_id}"
+    )
+    set_current_run_id(workflow_run_id)
+
+    workflow = await db_client.get_workflow(workflow_id, user_id)
+    vad_config = None
+    ambient_noise_config = None
+    if workflow and workflow.workflow_configurations:
+        if "vad_configuration" in workflow.workflow_configurations:
+            vad_config = workflow.workflow_configurations["vad_configuration"]
+        if "ambient_noise_configuration" in workflow.workflow_configurations:
+            ambient_noise_config = workflow.workflow_configurations[
+                "ambient_noise_configuration"
+            ]
+
+    audio_config = create_audio_config(WorkflowRunMode.LIVEKIT.value)
+
+    transport = create_livekit_transport(
+        url,
+        token,
+        room_name,
         workflow_run_id,
         audio_config,
         vad_config,
