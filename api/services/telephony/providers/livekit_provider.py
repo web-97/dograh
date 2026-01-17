@@ -1,12 +1,13 @@
 import uuid
 from typing import Any, Dict, List, Optional
 
+from api.enums import WorkflowRunMode
 from api.services.livekit_service import LiveKitTokenService
 from api.services.telephony.base import CallInitiationResult, TelephonyProvider
 
 
 class LiveKitProvider(TelephonyProvider):
-    PROVIDER_NAME = "livekit"
+    PROVIDER_NAME = WorkflowRunMode.LIVEKIT.value
     WEBHOOK_ENDPOINT = "livekit"
 
     def __init__(self, config: Dict[str, Any]) -> None:
