@@ -28,17 +28,20 @@ class LiveKitProvider(TelephonyProvider):
         workflow_run_id: Optional[int] = None,
         **kwargs: Any,
     ) -> CallInitiationResult:
+        # 生成/复用 LiveKit 房间名
         room_name = kwargs.get("room_name")
         if not room_name:
             suffix = workflow_run_id or uuid.uuid4()
             room_name = f"dograh-room-{suffix}"
 
+        # 使用组织级 LiveKit 配置生成 agent token
         service = LiveKitTokenService.from_values(
             api_key=self._config.get("api_key", ""),
             api_secret=self._config.get("api_secret", ""),
             url=self._config.get("url", ""),
         )
 
+        # agent 与 caller 使用不同身份与显示名，避免同名参与者
         agent_identity = kwargs.get("identity") or f"agent-{workflow_run_id or uuid.uuid4()}"
         agent_name = kwargs.get("participant_name") or "Agent"
         token, identity = service.create_participant_token(
@@ -48,12 +51,14 @@ class LiveKitProvider(TelephonyProvider):
             metadata=kwargs.get("metadata"),
         )
 
+        # SIP 呼出依赖 LiveKit SIP Trunk
         sip_trunk_id = self._config.get("sip_trunk_id")
         sip_call_to = self._config.get("sip_call_to")
 
         if not sip_trunk_id:
             raise ValueError("livekit_sip_trunk_id_required")
 
+        # 呼叫方的独立身份与显示名
         caller_identity = f"caller-{workflow_run_id or uuid.uuid4()}"
         caller_name = kwargs.get("caller_name") or "Caller"
         participant_metadata = kwargs.get("participant_metadata")
@@ -61,6 +66,7 @@ class LiveKitProvider(TelephonyProvider):
         from livekit import api as livekit_api
         from livekit.protocol.sip import CreateSIPParticipantRequest
 
+        # 创建 SIP 参与者并等待接听完成后再继续
         sip_request = CreateSIPParticipantRequest(
             sip_trunk_id=sip_trunk_id,
             sip_number=to_number,
@@ -73,6 +79,7 @@ class LiveKitProvider(TelephonyProvider):
         if sip_call_to:
             sip_request.sip_call_to = sip_call_to
 
+        # LiveKit API 需要 HTTP(S) URL（从 ws/wss 转换）
         api_url = self._get_api_url(service.url)
         async with livekit_api.LiveKitAPI(
             url=api_url,
@@ -81,6 +88,7 @@ class LiveKitProvider(TelephonyProvider):
         ) as lkapi:
             sip_participant = await lkapi.sip.create_sip_participant(sip_request)
 
+        # 返回用于前端/日志的 LiveKit 会话信息
         provider_metadata = {
             "room_name": room_name,
             "identity": identity,
