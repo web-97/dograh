@@ -62,9 +62,17 @@ class LiveKitProvider(TelephonyProvider):
         now = int(time.time())
         payload = {
             "iss": self.api_key,
+            "sub": "dograh-api",
             "iat": now,
             "nbf": now - 10,
             "exp": now + 3600,
+            "video": {
+                "room_create": True,
+                "room_admin": True,
+            },
+            "sip": {
+                "call": True,
+            },
         }
         return jwt.encode(payload, self.api_secret, algorithm="HS256")
 
