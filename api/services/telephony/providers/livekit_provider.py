@@ -68,7 +68,7 @@ class LiveKitProvider(TelephonyProvider):
             participant_identity=caller_identity,
             participant_name=caller_name,
             participant_metadata=participant_metadata or "",
-            wait_until_answered=False,
+            wait_until_answered=True,
         )
         if sip_call_to:
             sip_request.sip_call_to = sip_call_to
@@ -95,7 +95,7 @@ class LiveKitProvider(TelephonyProvider):
 
         return CallInitiationResult(
             call_id=room_name,
-            status="ready",
+            status="answered",
             provider_metadata=provider_metadata,
             raw_response=provider_metadata,
         )
