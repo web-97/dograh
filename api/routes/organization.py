@@ -8,6 +8,8 @@ from api.enums import OrganizationConfigurationKey
 from api.schemas.telephony_config import (
     CloudonixConfigurationRequest,
     CloudonixConfigurationResponse,
+    LiveKitConfigurationRequest,
+    LiveKitConfigurationResponse,
     TelephonyConfigurationResponse,
     TwilioConfigurationRequest,
     TwilioConfigurationResponse,
@@ -27,6 +29,7 @@ PROVIDER_MASKED_FIELDS = {
     "vonage": ["private_key", "api_key", "api_secret"],
     "vobiz": ["auth_id", "auth_token"],
     "cloudonix": ["bearer_token"],
+    "livekit": ["api_key", "api_secret"],
 }
 
 
@@ -122,6 +125,24 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
                 from_numbers=from_numbers,
             ),
             vobiz=None,
+            livekit=None,
+        )
+    elif stored_provider == "livekit":
+        api_key = config.value.get("api_key", "")
+        api_secret = config.value.get("api_secret", "")
+        url = config.value.get("url", "")
+
+        return TelephonyConfigurationResponse(
+            twilio=None,
+            vonage=None,
+            vobiz=None,
+            cloudonix=None,
+            livekit=LiveKitConfigurationResponse(
+                provider="livekit",
+                api_key=mask_key(api_key) if api_key else "",
+                api_secret=mask_key(api_secret) if api_secret else "",
+                url=url,
+            ),
         )
     else:
         return TelephonyConfigurationResponse()
@@ -134,6 +155,7 @@ async def save_telephony_configuration(
         VonageConfigurationRequest,
         VobizConfigurationRequest,
         CloudonixConfigurationRequest,
+        LiveKitConfigurationRequest,
     ],
     user: UserModel = Depends(get_user),
 ):
@@ -177,6 +199,13 @@ async def save_telephony_configuration(
             "bearer_token": request.bearer_token,
             "domain_id": request.domain_id,
             "from_numbers": request.from_numbers,
+        }
+    elif request.provider == "livekit":
+        config_value = {
+            "provider": "livekit",
+            "api_key": request.api_key,
+            "api_secret": request.api_secret,
+            "url": request.url,
         }
     else:
         raise HTTPException(

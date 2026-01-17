@@ -52,7 +52,26 @@ interface TelephonyConfigForm {
   domain_id?: string;
   // Common field
   from_number: string;
+  // LiveKit fields
+  livekit_api_key?: string;
+  livekit_api_secret?: string;
+  livekit_url?: string;
 }
+
+interface LiveKitConfigurationRequest {
+  provider: "livekit";
+  api_key: string;
+  api_secret: string;
+  url: string;
+}
+
+type TelephonyConfigurationResponseWithLiveKit = TelephonyConfigurationResponse & {
+  livekit?: {
+    api_key: string;
+    api_secret: string;
+    url: string;
+  };
+};
 
 export default function ConfigureTelephonyPage() {
   const router = useRouter();
@@ -129,6 +148,17 @@ export default function ConfigureTelephonyPage() {
             if (cloudonixConfig.from_numbers?.length > 0) {
               setValue("from_number", cloudonixConfig.from_numbers[0]);
             }
+          } else if ((response.data as TelephonyConfigurationResponseWithLiveKit)?.livekit) {
+            const livekitConfig = (response.data as TelephonyConfigurationResponseWithLiveKit).livekit as {
+              api_key: string;
+              api_secret: string;
+              url: string;
+            };
+            setHasExistingConfig(true);
+            setValue("provider", "livekit");
+            setValue("livekit_api_key", livekitConfig.api_key);
+            setValue("livekit_api_secret", livekitConfig.api_secret);
+            setValue("livekit_url", livekitConfig.url);
           }
         }
       } catch (error) {
@@ -150,7 +180,8 @@ export default function ConfigureTelephonyPage() {
         | TwilioConfigurationRequest
         | VonageConfigurationRequest
         | VobizConfigurationRequest
-        | CloudonixConfigurationRequest;
+        | CloudonixConfigurationRequest
+        | LiveKitConfigurationRequest;
 
       if (data.provider === "twilio") {
         requestBody = {
@@ -176,18 +207,30 @@ export default function ConfigureTelephonyPage() {
           auth_token: data.vobiz_auth_token,
         } as VobizConfigurationRequest;
       } else {
-        // Cloudonix
-        requestBody = {
-          provider: data.provider,
-          from_numbers: data.from_number ? [data.from_number] : [],
-          bearer_token: data.bearer_token!,
-          domain_id: data.domain_id!,
-        } as CloudonixConfigurationRequest;
+        if (data.provider === "cloudonix") {
+          requestBody = {
+            provider: data.provider,
+            from_numbers: data.from_number ? [data.from_number] : [],
+            bearer_token: data.bearer_token!,
+            domain_id: data.domain_id!,
+          } as CloudonixConfigurationRequest;
+        } else {
+          requestBody = {
+            provider: "livekit",
+            api_key: data.livekit_api_key!,
+            api_secret: data.livekit_api_secret!,
+            url: data.livekit_url!,
+          } as LiveKitConfigurationRequest;
+        }
       }
 
       const response = await saveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPost({
         headers: { Authorization: `Bearer ${accessToken}` },
-        body: requestBody
+        body: requestBody as unknown as
+          | TwilioConfigurationRequest
+          | VonageConfigurationRequest
+          | VobizConfigurationRequest
+          | CloudonixConfigurationRequest
       });
 
       if (response.error) {
@@ -231,6 +274,8 @@ export default function ConfigureTelephonyPage() {
                     ? "Vonage"
                     : selectedProvider === "vobiz"
                     ? "Vobiz"
+                    : selectedProvider === "livekit"
+                    ? "LiveKit"
                     : "Cloudonix"}{" "}
                   Setup Guide
                 </CardTitle>
@@ -265,6 +310,21 @@ export default function ConfigureTelephonyPage() {
                         https://developers.cloudonix.com
                       </a>{" "}
                       for developer documentation and API reference.
+                    </>
+                  ) : selectedProvider === "livekit" ? (
+                    <>
+                      LiveKit enables WebRTC rooms for real-time audio. Configure your
+                      LiveKit server URL and API credentials, then connect your phone
+                      ingress to the LiveKit room following the{" "}
+                      <a
+                        href="https://docs.dograh.com/integrations/telephony/custom"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        custom telephony guide
+                      </a>
+                      .
                     </>
                   ) : selectedProvider === "vobiz" ? (
                     <>
@@ -311,6 +371,25 @@ export default function ConfigureTelephonyPage() {
                       <p className="text-sm">
                         <strong>Note:</strong> Vobiz provides cloud-based telephony services
                         with global reach and competitive pricing.
+                      </p>
+                    </div>
+                  </div>
+                ) : selectedProvider === "livekit" ? (
+                  <div className="space-y-4 text-sm">
+                    <div>
+                      <h4 className="font-semibold mb-2">Getting Started with LiveKit:</h4>
+                      <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                        <li>Provision a LiveKit server or LiveKit Cloud project</li>
+                        <li>Create an API key and API secret</li>
+                        <li>Set your LiveKit server URL (wss://...)</li>
+                        <li>Connect your telephony ingress to a LiveKit room</li>
+                        <li>Save the credentials below</li>
+                      </ol>
+                    </div>
+                    <div className="bg-muted border border-border rounded p-3">
+                      <p className="text-sm">
+                        <strong>Note:</strong> Use the custom telephony integration
+                        if your phone provider connects via SIP/PSTN to LiveKit.
                       </p>
                     </div>
                   </div>
@@ -362,6 +441,7 @@ export default function ConfigureTelephonyPage() {
                         <SelectItem value="vonage">Vonage</SelectItem>
                         <SelectItem value="vobiz">Vobiz</SelectItem>
                         <SelectItem value="cloudonix">Cloudonix</SelectItem>
+                        <SelectItem value="livekit">LiveKit</SelectItem>
                       </SelectContent>
                     </Select>
                     {hasExistingConfig && (
@@ -659,6 +739,66 @@ export default function ConfigureTelephonyPage() {
                           Phone numbers can be fetched from Cloudonix DNIDs if not
                           specified
                         </p>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedProvider === "livekit" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="livekit_url">LiveKit Server URL</Label>
+                        <Input
+                          id="livekit_url"
+                          placeholder="wss://your-domain.livekit.cloud"
+                          {...register("livekit_url", {
+                            required: "LiveKit URL is required",
+                          })}
+                        />
+                        {errors.livekit_url && (
+                          <p className="text-sm text-red-500">
+                            {errors.livekit_url.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="livekit_api_key">LiveKit API Key</Label>
+                        <Input
+                          id="livekit_api_key"
+                          placeholder="LKAPIxxxxxxxxxxxxxxxxxxxx"
+                          {...register("livekit_api_key", {
+                            required: "LiveKit API key is required",
+                          })}
+                        />
+                        {errors.livekit_api_key && (
+                          <p className="text-sm text-red-500">
+                            {errors.livekit_api_key.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="livekit_api_secret">LiveKit API Secret</Label>
+                        <Input
+                          id="livekit_api_secret"
+                          type="password"
+                          autoComplete="current-password"
+                          placeholder={
+                            hasExistingConfig
+                              ? "Leave masked to keep existing"
+                              : "Enter your LiveKit API secret"
+                          }
+                          {...register("livekit_api_secret", {
+                            required: !hasExistingConfig
+                              ? "LiveKit API secret is required"
+                              : false,
+                          })}
+                        />
+                        {errors.livekit_api_secret && (
+                          <p className="text-sm text-red-500">
+                            {errors.livekit_api_secret.message}
+                          </p>
+                        )}
                       </div>
                     </>
                   )}
