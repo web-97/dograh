@@ -56,6 +56,8 @@ interface TelephonyConfigForm {
   livekit_api_key?: string;
   livekit_api_secret?: string;
   livekit_url?: string;
+  livekit_sip_trunk_id?: string;
+  livekit_sip_call_to?: string;
 }
 
 interface LiveKitConfigurationRequest {
@@ -63,6 +65,8 @@ interface LiveKitConfigurationRequest {
   api_key: string;
   api_secret: string;
   url: string;
+  sip_trunk_id?: string;
+  sip_call_to?: string;
 }
 
 type TelephonyConfigurationResponseWithLiveKit = TelephonyConfigurationResponse & {
@@ -70,6 +74,8 @@ type TelephonyConfigurationResponseWithLiveKit = TelephonyConfigurationResponse 
     api_key: string;
     api_secret: string;
     url: string;
+    sip_trunk_id?: string;
+    sip_call_to?: string;
   };
 };
 
@@ -159,6 +165,8 @@ export default function ConfigureTelephonyPage() {
             setValue("livekit_api_key", livekitConfig.api_key);
             setValue("livekit_api_secret", livekitConfig.api_secret);
             setValue("livekit_url", livekitConfig.url);
+            setValue("livekit_sip_trunk_id", livekitConfig.sip_trunk_id || "");
+            setValue("livekit_sip_call_to", livekitConfig.sip_call_to || "");
           }
         }
       } catch (error) {
@@ -220,6 +228,8 @@ export default function ConfigureTelephonyPage() {
             api_key: data.livekit_api_key!,
             api_secret: data.livekit_api_secret!,
             url: data.livekit_url!,
+            sip_trunk_id: data.livekit_sip_trunk_id || undefined,
+            sip_call_to: data.livekit_sip_call_to || undefined,
           } as LiveKitConfigurationRequest;
         }
       }
@@ -382,6 +392,7 @@ export default function ConfigureTelephonyPage() {
                         <li>Provision a LiveKit server or LiveKit Cloud project</li>
                         <li>Create an API key and API secret</li>
                         <li>Set your LiveKit server URL (wss://...)</li>
+                        <li>Set the outbound SIP trunk ID for phone dial-out</li>
                         <li>Connect your telephony ingress to a LiveKit room</li>
                         <li>Save the credentials below</li>
                       </ol>
@@ -799,6 +810,31 @@ export default function ConfigureTelephonyPage() {
                             {errors.livekit_api_secret.message}
                           </p>
                         )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="livekit_sip_trunk_id">SIP Trunk ID</Label>
+                        <Input
+                          id="livekit_sip_trunk_id"
+                          placeholder="sip_trunk_xxx"
+                          {...register("livekit_sip_trunk_id", {
+                            required: "SIP trunk ID is required for outbound calls",
+                          })}
+                        />
+                        {errors.livekit_sip_trunk_id && (
+                          <p className="text-sm text-red-500">
+                            {errors.livekit_sip_trunk_id.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="livekit_sip_call_to">SIP Call To (optional)</Label>
+                        <Input
+                          id="livekit_sip_call_to"
+                          placeholder="sip:+1234567890@sip.livekit.cloud"
+                          {...register("livekit_sip_call_to")}
+                        />
                       </div>
                     </>
                   )}

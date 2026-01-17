@@ -13,6 +13,14 @@ class LiveKitProvider(TelephonyProvider):
     def __init__(self, config: Dict[str, Any]) -> None:
         self._config = config
 
+    @staticmethod
+    def _get_api_url(url: str) -> str:
+        if url.startswith("wss://"):
+            return "https://" + url[len("wss://") :]
+        if url.startswith("ws://"):
+            return "http://" + url[len("ws://") :]
+        return url
+
     async def initiate_call(
         self,
         to_number: str,
@@ -38,11 +46,49 @@ class LiveKitProvider(TelephonyProvider):
             metadata=kwargs.get("metadata"),
         )
 
+        sip_trunk_id = self._config.get("sip_trunk_id")
+        sip_call_to = self._config.get("sip_call_to")
+
+        if not sip_trunk_id:
+            raise ValueError("livekit_sip_trunk_id_required")
+
+        caller_identity = f"sip-{workflow_run_id or uuid.uuid4()}"
+        participant_name = kwargs.get("participant_name") or "Caller"
+        participant_metadata = kwargs.get("participant_metadata")
+
+        from livekit import api as livekit_api
+        from livekit.protocol.sip import CreateSIPParticipantRequest
+
+        sip_request = CreateSIPParticipantRequest(
+            sip_trunk_id=sip_trunk_id,
+            sip_number=to_number,
+            room_name=room_name,
+            participant_identity=caller_identity,
+            participant_name=participant_name,
+            participant_metadata=participant_metadata or "",
+            wait_until_answered=False,
+        )
+        if sip_call_to:
+            sip_request.sip_call_to = sip_call_to
+
+        api_url = self._get_api_url(service.url)
+        async with livekit_api.LiveKitAPI(
+            url=api_url,
+            api_key=service.api_key,
+            api_secret=service.api_secret,
+        ) as lkapi:
+            sip_participant = await lkapi.sip.create_sip_participant(sip_request)
+
         provider_metadata = {
             "room_name": room_name,
             "identity": identity,
             "token": token,
             "url": service.url,
+            "sip_trunk_id": sip_trunk_id,
+            "sip_call_to": sip_call_to,
+            "sip_participant_id": sip_participant.participant_id,
+            "sip_participant_identity": sip_participant.participant_identity,
+            "sip_call_id": sip_participant.sip_call_id,
         }
 
         return CallInitiationResult(
@@ -63,6 +109,7 @@ class LiveKitProvider(TelephonyProvider):
             self._config.get("api_key")
             and self._config.get("api_secret")
             and self._config.get("url")
+            and self._config.get("sip_trunk_id")
         )
 
     async def verify_webhook_signature(

@@ -75,3 +75,11 @@ class LiveKitTokenService:
     @property
     def url(self) -> str:
         return self._config.url
+
+    @property
+    def api_key(self) -> str:
+        return self._config.api_key
+
+    @property
+    def api_secret(self) -> str:
+        return self._config.api_secret

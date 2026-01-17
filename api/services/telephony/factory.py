@@ -81,6 +81,8 @@ async def load_telephony_config(organization_id: int) -> Dict[str, Any]:
                 "api_key": config.value.get("api_key"),
                 "api_secret": config.value.get("api_secret"),
                 "url": config.value.get("url"),
+                "sip_trunk_id": config.value.get("sip_trunk_id"),
+                "sip_call_to": config.value.get("sip_call_to"),
             }
         else:
             raise ValueError(f"Unknown provider in config: {provider}")

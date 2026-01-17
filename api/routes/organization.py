@@ -131,6 +131,8 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
         api_key = config.value.get("api_key", "")
         api_secret = config.value.get("api_secret", "")
         url = config.value.get("url", "")
+        sip_trunk_id = config.value.get("sip_trunk_id")
+        sip_call_to = config.value.get("sip_call_to")
 
         return TelephonyConfigurationResponse(
             twilio=None,
@@ -142,6 +144,8 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
                 api_key=mask_key(api_key) if api_key else "",
                 api_secret=mask_key(api_secret) if api_secret else "",
                 url=url,
+                sip_trunk_id=sip_trunk_id,
+                sip_call_to=sip_call_to,
             ),
         )
     else:
@@ -206,6 +210,8 @@ async def save_telephony_configuration(
             "api_key": request.api_key,
             "api_secret": request.api_secret,
             "url": request.url,
+            "sip_trunk_id": request.sip_trunk_id,
+            "sip_call_to": request.sip_call_to,
         }
     else:
         raise HTTPException(

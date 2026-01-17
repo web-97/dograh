@@ -179,12 +179,15 @@ async def initiate_call(
     keywords = {"workflow_id": request.workflow_id, "user_id": user.id}
 
     # Initiate call via provider
-    result = await provider.initiate_call(
-        to_number=phone_number,
-        webhook_url=webhook_url,
-        workflow_run_id=workflow_run_id,
-        **keywords,
-    )
+    try:
+        result = await provider.initiate_call(
+            to_number=phone_number,
+            webhook_url=webhook_url,
+            workflow_run_id=workflow_run_id,
+            **keywords,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Store provider type and any provider-specific metadata in workflow run context
     gathered_context = {
