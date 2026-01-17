@@ -12,6 +12,7 @@ from api.db import db_client
 from api.enums import OrganizationConfigurationKey
 from api.services.telephony.base import TelephonyProvider
 from api.services.telephony.providers.cloudonix_provider import CloudonixProvider
+from api.services.telephony.providers.livekit_provider import LiveKitProvider
 from api.services.telephony.providers.twilio_provider import TwilioProvider
 from api.services.telephony.providers.vobiz_provider import VobizProvider
 from api.services.telephony.providers.vonage_provider import VonageProvider
@@ -122,7 +123,7 @@ async def get_telephony_provider(organization_id: int) -> TelephonyProvider:
         return CloudonixProvider(config)
 
     elif provider_type == "livekit":
-        raise ValueError("livekit_provider_not_supported_for_call_initiation")
+        return LiveKitProvider(config)
 
     else:
         raise ValueError(f"Unknown telephony provider: {provider_type}")

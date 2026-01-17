@@ -162,17 +162,17 @@ async def initiate_call(
         workflow_run_name = workflow_run.name
 
     # Construct webhook URL based on provider type
-    backend_endpoint = await TunnelURLProvider.get_tunnel_url()
-
-    webhook_endpoint = provider.WEBHOOK_ENDPOINT
-
-    webhook_url = (
-        f"https://{backend_endpoint}/api/v1/telephony/{webhook_endpoint}"
-        f"?workflow_id={request.workflow_id}"
-        f"&user_id={user.id}"
-        f"&workflow_run_id={workflow_run_id}"
-        f"&organization_id={user.selected_organization_id}"
-    )
+    webhook_url = ""
+    if provider.WEBHOOK_ENDPOINT:
+        backend_endpoint = await TunnelURLProvider.get_tunnel_url()
+        webhook_endpoint = provider.WEBHOOK_ENDPOINT
+        webhook_url = (
+            f"https://{backend_endpoint}/api/v1/telephony/{webhook_endpoint}"
+            f"?workflow_id={request.workflow_id}"
+            f"&user_id={user.id}"
+            f"&workflow_run_id={workflow_run_id}"
+            f"&organization_id={user.selected_organization_id}"
+        )
 
     keywords = {"workflow_id": request.workflow_id, "user_id": user.id}
 
@@ -193,7 +193,10 @@ async def initiate_call(
         run_id=workflow_run_id, gathered_context=gathered_context
     )
 
-    return {"message": f"Call initiated successfully with run name {workflow_run_name}"}
+    response = {"message": f"Call initiated successfully with run name {workflow_run_name}"}
+    if provider.PROVIDER_NAME == "livekit":
+        response["livekit"] = result.provider_metadata
+    return response
 
 
 async def _verify_organization_phone_number(
