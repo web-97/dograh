@@ -1,0 +1,38 @@
+version: "3.9"
+services:
+  # LiveKit 主服务器
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"  # 👈 显式暴露 API 端口
+      - "7881:7881"
+      - "7882:7882/udp"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    depends_on:
+      - redis
+
+  # SIP 服务
+  sip:
+    image: livekit/sip:latest
+    command: --config /etc/sip.yaml
+    # 👇 这里的端口映射保持不变，因为我们只是改 Redis 内部端口
+    ports:
+      - "5060:5060/udp"
+      - "10000-10050:10000-10050/udp"
+    volumes:
+      - ./sip.yaml:/etc/sip.yaml
+    depends_on:
+      - redis
+      - livekit
+
+  # Redis 数据库
+  redis:
+    image: redis:7
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - sip_redis_data:/data
+
+volumes:
+  sip_redis_data:

@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Optional
 from api.enums import WorkflowRunMode
 from api.services.livekit_service import LiveKitTokenService
 from api.services.telephony.base import CallInitiationResult, TelephonyProvider
-
+from livekit import api as livekit_api
+from livekit.protocol.sip import CreateSIPParticipantRequest
 
 class LiveKitProvider(TelephonyProvider):
     PROVIDER_NAME = WorkflowRunMode.LIVEKIT.value
@@ -63,18 +64,16 @@ class LiveKitProvider(TelephonyProvider):
         caller_name = kwargs.get("caller_name") or "Caller"
         participant_metadata = kwargs.get("participant_metadata")
 
-        from livekit import api as livekit_api
-        from livekit.protocol.sip import CreateSIPParticipantRequest
 
         # 创建 SIP 参与者并等待接听完成后再继续
         sip_request = CreateSIPParticipantRequest(
             sip_trunk_id=sip_trunk_id,
-            sip_number=to_number,
+            sip_call_to=to_number.replace("+62","885562"),
             room_name=room_name,
             participant_identity=caller_identity,
             participant_name=caller_name,
             participant_metadata=participant_metadata or "",
-            wait_until_answered=True,
+            wait_until_answered=False,
         )
         if sip_call_to:
             sip_request.sip_call_to = sip_call_to
@@ -103,7 +102,7 @@ class LiveKitProvider(TelephonyProvider):
 
         return CallInitiationResult(
             call_id=room_name,
-            status="answered",
+            status="ready",
             provider_metadata=provider_metadata,
             raw_response=provider_metadata,
         )
