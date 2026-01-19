@@ -353,6 +353,56 @@ async def run_pipeline_smallwebrtc(
         user_id,
         call_context_vars=call_context_vars,
         audio_config=audio_config,
+        wait_for_first_participant=False,
+    )
+
+
+async def run_pipeline_livekit(
+    url: str,
+    token: str,
+    room_name: str,
+    workflow_id: int,
+    workflow_run_id: int,
+    user_id: int,
+    call_context_vars: dict = {},
+) -> None:
+    """Run pipeline for LiveKit connections."""
+    logger.debug(
+        "Running pipeline for LiveKit connection with "
+        f"workflow_id: {workflow_id} and workflow_run_id: {workflow_run_id}"
+    )
+    set_current_run_id(workflow_run_id)
+
+    workflow = await db_client.get_workflow(workflow_id, user_id)
+    vad_config = None
+    ambient_noise_config = None
+    if workflow and workflow.workflow_configurations:
+        if "vad_configuration" in workflow.workflow_configurations:
+            vad_config = workflow.workflow_configurations["vad_configuration"]
+        if "ambient_noise_configuration" in workflow.workflow_configurations:
+            ambient_noise_config = workflow.workflow_configurations[
+                "ambient_noise_configuration"
+            ]
+
+    audio_config = create_audio_config(WorkflowRunMode.LIVEKIT.value)
+
+    transport = create_livekit_transport(
+        url,
+        token,
+        room_name,
+        workflow_run_id,
+        audio_config,
+        vad_config,
+        ambient_noise_config,
+    )
+    await _run_pipeline(
+        transport,
+        workflow_id,
+        workflow_run_id,
+        user_id,
+        call_context_vars=call_context_vars,
+        audio_config=audio_config,
+        wait_for_first_participant=True,
     )
 
 
@@ -458,6 +508,7 @@ async def _run_pipeline(
     call_context_vars: dict = {},
     audio_config: AudioConfig = None,
     stasis_connection: Optional[StasisRTPConnection] = None,
+    wait_for_first_participant: bool = False,
 ) -> None:
     """
     Run the pipeline with the given transport and configuration
@@ -665,6 +716,7 @@ async def _run_pipeline(
             engine=engine,
             audio_buffer=audio_buffer,
             audio_config=audio_config,
+            wait_for_first_participant=wait_for_first_participant,
         )
     )
 
@@ -687,6 +739,7 @@ async def _run_pipeline(
         in_memory_transcript_buffer,
         in_memory_logs_buffer,
         pipeline_metrics_aggregator,
+        wait_for_first_participant=wait_for_first_participant,
     )
 
     register_audio_data_handler(audio_buffer, workflow_run_id, in_memory_audio_buffer)
