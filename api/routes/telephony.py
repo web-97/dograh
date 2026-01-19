@@ -3,6 +3,7 @@ Telephony routes - handles all telephony-related endpoints.
 Consolidated from split modules for easier maintenance.
 """
 
+import asyncio
 import json
 import uuid
 from datetime import UTC, datetime
@@ -26,6 +27,7 @@ from api.services.auth.depends import get_user
 from api.services.campaign.call_dispatcher import campaign_call_dispatcher
 from api.services.campaign.campaign_event_publisher import get_campaign_event_publisher
 from api.services.quota_service import check_dograh_quota, check_dograh_quota_by_user_id
+from api.services.pipecat.run_pipeline import run_pipeline_livekit
 from api.services.telephony.factory import (
     get_all_telephony_providers,
     get_telephony_provider,
@@ -108,7 +110,10 @@ async def initiate_call(
     """Initiate a call using the configured telephony provider."""
 
     # Get the telephony provider for the organization
-    provider = await get_telephony_provider(user.selected_organization_id)
+    try:
+        provider = await get_telephony_provider(user.selected_organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Validate provider is configured
     if not provider.validate_config():
@@ -159,27 +164,30 @@ async def initiate_call(
         workflow_run_name = workflow_run.name
 
     # Construct webhook URL based on provider type
-    backend_endpoint = await TunnelURLProvider.get_tunnel_url()
-
-    webhook_endpoint = provider.WEBHOOK_ENDPOINT
-
-    webhook_url = (
-        f"https://{backend_endpoint}/api/v1/telephony/{webhook_endpoint}"
-        f"?workflow_id={request.workflow_id}"
-        f"&user_id={user.id}"
-        f"&workflow_run_id={workflow_run_id}"
-        f"&organization_id={user.selected_organization_id}"
-    )
+    webhook_url = ""
+    if provider.WEBHOOK_ENDPOINT:
+        backend_endpoint = await TunnelURLProvider.get_tunnel_url()
+        webhook_endpoint = provider.WEBHOOK_ENDPOINT
+        webhook_url = (
+            f"https://{backend_endpoint}/api/v1/telephony/{webhook_endpoint}"
+            f"?workflow_id={request.workflow_id}"
+            f"&user_id={user.id}"
+            f"&workflow_run_id={workflow_run_id}"
+            f"&organization_id={user.selected_organization_id}"
+        )
 
     keywords = {"workflow_id": request.workflow_id, "user_id": user.id}
 
     # Initiate call via provider
-    result = await provider.initiate_call(
-        to_number=phone_number,
-        webhook_url=webhook_url,
-        workflow_run_id=workflow_run_id,
-        **keywords,
-    )
+    try:
+        result = await provider.initiate_call(
+            to_number=phone_number,
+            webhook_url=webhook_url,
+            workflow_run_id=workflow_run_id,
+            **keywords,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Store provider type and any provider-specific metadata in workflow run context
     gathered_context = {
@@ -190,7 +198,28 @@ async def initiate_call(
         run_id=workflow_run_id, gathered_context=gathered_context
     )
 
-    return {"message": f"Call initiated successfully with run name {workflow_run_name}"}
+    response = {"message": f"Call initiated successfully with run name {workflow_run_name}"}
+    if provider.PROVIDER_NAME == "livekit":
+        livekit_metadata = result.provider_metadata or {}
+        url = livekit_metadata.get("url")
+        token = livekit_metadata.get("token")
+        room_name = livekit_metadata.get("room_name")
+
+        if url and token and room_name:
+            asyncio.create_task(
+                run_pipeline_livekit(
+                    url=url,
+                    token=token,
+                    room_name=room_name,
+                    workflow_id=request.workflow_id,
+                    workflow_run_id=workflow_run_id,
+                    user_id=user.id,
+                    call_context_vars={"livekit": livekit_metadata},
+                )
+            )
+
+        response["livekit"] = result.provider_metadata
+    return response
 
 
 async def _verify_organization_phone_number(

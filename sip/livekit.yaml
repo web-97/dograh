@@ -1,0 +1,22 @@
+# livekit.yaml
+port: 7880
+bind_addresses:
+  - ""
+
+keys:
+  # 你的测试 Key
+  devkey: "secret123secret123secret123secret123secret123secret123secret123secret123secret123secret123"
+
+redis:
+  address: "redis:6379"
+sip:
+  {}
+rtc:
+  udp_port: 7882
+  tcp_port: 7881
+  # 这里不需要填公网IP，因为主服务主要处理WebRTC，
+  # 我们通过 SIP 服务来处理电话的公网IP
+  use_external_ip: true
+
+logging:
+  level: info
