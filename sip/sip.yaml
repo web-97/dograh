@@ -1,0 +1,26 @@
+# sip.yaml
+
+# 👇 新增：SIP 服务必须凭这些信息去连接主服务
+api_key: "devkey"
+api_secret: "secret123secret123secret123secret123secret123secret123secret123secret123secret123secret123"
+ws_url: "ws://host.docker.internal:7880"  # Docker 内部互联地址
+
+redis:
+  address: "redis:6379"
+
+sip:
+  listen_addr: "0.0.0.0:5060"
+
+rtp:
+  rtp_port_range:
+    start: 10000
+    end: 10050
+  external_ip: "175.152.79.196" # 你的公网IP
+
+rpc:
+  host: "0.0.0.0"
+  port: 8081
+
+logging:
+  level: info
+

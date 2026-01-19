@@ -1,6 +1,10 @@
 langfuse==3.9.3
 fastapi==0.116.2
 asyncpg==0.30.0
+livekit~=1.0.13
+livekit-api~=1.0.5
+PyJWT==2.10.1
+tenacity>=8.2.3,<10.0.0
 alembic==1.16.5
 redis==5.3.1
 uvicorn==0.35.0
