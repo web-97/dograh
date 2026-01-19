@@ -453,6 +453,62 @@ def create_webrtc_transport(
     )
 
 
+def create_livekit_transport(
+    url: str,
+    token: str,
+    room_name: str,
+    workflow_run_id: int,
+    audio_config: AudioConfig,
+    vad_config: dict | None = None,
+    ambient_noise_config: dict | None = None,
+):
+    """Create a transport for LiveKit connections."""
+    from pipecat.transports.livekit.transport import LiveKitParams, LiveKitTransport
+
+    turn_analyzer = create_turn_analyzer(workflow_run_id, audio_config)
+
+    return LiveKitTransport(
+        url=url,
+        token=token,
+        room_name=room_name,
+        params=LiveKitParams(
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            audio_in_sample_rate=audio_config.transport_in_sample_rate,
+            audio_out_sample_rate=audio_config.transport_out_sample_rate,
+            vad_analyzer=(
+                SileroVADAnalyzer(
+                    params=VADParams(
+                        confidence=vad_config.get("confidence", 0.7),
+                        start_secs=vad_config.get("start_seconds", 0.4),
+                        stop_secs=vad_config.get("stop_seconds", 0.8),
+                        min_volume=vad_config.get("minimum_volume", 0.6),
+                    )
+                )
+                if vad_config
+                else SileroVADAnalyzer()
+            ),
+            audio_out_mixer=(
+                SoundfileMixer(
+                    sound_files={
+                        "office": APP_ROOT_DIR
+                        / "assets"
+                        / f"office-ambience-{audio_config.transport_out_sample_rate}-mono.wav"
+                    },
+                    default_sound="office",
+                    volume=ambient_noise_config.get("volume", 0.3),
+                )
+                if ambient_noise_config and ambient_noise_config.get("enabled", False)
+                else SilenceAudioMixer()
+            ),
+            turn_analyzer=turn_analyzer,
+            audio_in_filter=RNNoiseFilter(library_path=librnnoise_path)
+            if ENABLE_RNNOISE
+            else None,
+        ),
+    )
+
+
 def create_stasis_transport(
     stasis_connection: StasisRTPConnection,
     workflow_run_id: int,

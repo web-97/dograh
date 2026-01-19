@@ -29,6 +29,7 @@ def register_transport_event_handlers(
     engine: PipecatEngine,
     audio_buffer: AudioBufferProcessor,
     audio_config=AudioConfig,
+    wait_for_first_participant: bool = False,
 ):
     """Register event handlers for transport events"""
 
@@ -47,6 +48,8 @@ def register_transport_event_handlers(
         num_channels=num_channels,
     )
     in_memory_transcript_buffer = InMemoryTranscriptBuffer(workflow_run_id)
+
+    initial_llm_sent = False
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, participant):
@@ -69,6 +72,31 @@ def register_transport_event_handlers(
         if not call_disposed:
             await task.cancel()
 
+    if wait_for_first_participant:
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(_transport, _participant_id):
+            nonlocal initial_llm_sent
+            if initial_llm_sent:
+                return
+            logger.debug(
+                "LiveKit first participant joined - triggering initial LLM generation"
+            )
+            await engine.llm.queue_frame(LLMContextFrame(engine.context))
+            initial_llm_sent = True
+
+        @transport.event_handler("on_participant_disconnected")
+        async def on_participant_disconnected(_transport, _participant_id):
+            call_disposed = engine.is_call_disposed()
+            logger.debug(
+                "LiveKit participant disconnected - ending workflow. "
+                f"Call disposed: {call_disposed}"
+            )
+            engine.handle_client_disconnected()
+            await audio_buffer.stop_recording()
+            if not call_disposed:
+                await task.cancel()
+
     # Return the buffers so they can be passed to other handlers
     return in_memory_audio_buffer, in_memory_transcript_buffer
 
@@ -83,13 +111,16 @@ def register_task_event_handler(
     in_memory_transcript_buffer: InMemoryTranscriptBuffer,
     in_memory_logs_buffer: InMemoryLogsBuffer,
     pipeline_metrics_aggregator: PipelineMetricsAggregator,
+    wait_for_first_participant: bool = False,
 ):
     @task.event_handler("on_pipeline_started")
     async def on_pipeline_started(task: PipelineTask, frame: Frame):
         logger.debug(
             "In on_pipeline_started callback handler - triggering initial LLM generation"
         )
-        # Trigger initial LLM generation after pipeline has started
+        # LiveKit: 等待接听后/首个参与者进入再触发
+        if wait_for_first_participant:
+            return
         await engine.llm.queue_frame(LLMContextFrame(engine.context))
 
     @task.event_handler("on_pipeline_finished")
